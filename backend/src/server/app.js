@@ -7,6 +7,7 @@ import uploadRouter from "./routes/upload.js";
 import filesRouter from "./routes/files.js";
 import adminRouter from "./routes/admin.js";
 import authRouter from "./routes/auth.js";
+import textRouter from "./routes/text.js";
 
 const config = loadConfig();
 
@@ -25,6 +26,7 @@ app.use("/api", authMiddleware.optional);
 app.use("/api/auth", authMiddleware.required, authRouter);
 app.use("/api/upload", authMiddleware.required, uploadRouter);
 app.use("/api/files", authMiddleware.required, filesRouter);
+app.use("/api/text", authMiddleware.required, textRouter);
 app.use("/api/admin", authMiddleware.adminOnly, adminRouter);
 
 app.use((err, req, res, next) => {

@@ -109,6 +109,7 @@ router.post("/", upload.array("files"), async (req, res, next) => {
 
         const categories = await categorizeText(text);
         const summary = await summarizeText(text);
+        console.log(summary);
 
         doc.gridFsId = new ObjectId(gridId);
         doc.text = text;

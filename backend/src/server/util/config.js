@@ -13,6 +13,7 @@ export function loadConfig() {
     SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || "",
     CORS_ORIGIN: process.env.CORS_ORIGIN || "*",
     OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
+    HUGGINGFACE_API_KEY: process.env.HUGGINGFACE_API_KEY || "",
     ADMIN_EMAIL: process.env.ADMIN_EMAIL || "lokeshpawar721@gmail.com",
   };
 }
