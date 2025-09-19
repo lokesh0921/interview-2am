@@ -5,7 +5,7 @@ dotenv.config();
 export function loadConfig() {
   return {
     NODE_ENV: process.env.NODE_ENV || "development",
-    PORT: Number(process.env.PORT || 4000),
+    PORT: Number(process.env.PORT || 4001),
     MONGODB_URI:
       process.env.MONGODB_URI || "mongodb://localhost:27017/ai_ingest",
     SUPABASE_JWKS_URL: process.env.SUPABASE_JWKS_URL || "",

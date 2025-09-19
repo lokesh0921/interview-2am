@@ -1,5 +1,5 @@
 export const API_BASE =
-  import.meta.env.VITE_API_BASE || "http://localhost:4000/api";
+  import.meta.env.VITE_API_BASE || "http://localhost:4001/api";
 
 export async function apiFetch(path: string, opts: RequestInit = {}) {
   const token = localStorage.getItem("sb:token") || "";

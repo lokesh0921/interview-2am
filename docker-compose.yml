@@ -12,13 +12,13 @@ services:
     image: ai-ingest-mern-backend:local
     environment:
       - NODE_ENV=development
-      - PORT=4000
+      - PORT=4001
       - MONGODB_URI=mongodb://mongo:27017/ai_ingest
       - SUPABASE_JWKS_URL=${SUPABASE_JWKS_URL}
       - CORS_ORIGIN=http://localhost:5173
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     ports:
-      - "4000:4000"
+      - "4001:4001"
     depends_on:
       - mongo
 volumes:

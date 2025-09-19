@@ -52,7 +52,7 @@ export async function categorizeText(text) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            inputs: text.slice(0, 4000),
+            inputs: text.slice(0, 4001),
             parameters: {
               candidate_labels: defaultCategories,
               multi_label: true,
@@ -169,7 +169,9 @@ export async function summarizeText(text) {
       );
 
       if (!response.ok) {
-        console.error(`Hugging Face API error: ${response.status} ${response.statusText}`);
+        console.error(
+          `Hugging Face API error: ${response.status} ${response.statusText}`
+        );
         // Fall through to fallback summary
       } else {
         const result = await response.json();
@@ -185,7 +187,10 @@ export async function summarizeText(text) {
           console.error(`Hugging Face API error: ${result.error}`);
           // Fall through to fallback summary
         } else {
-          console.error("Unexpected response format from Hugging Face API", result);
+          console.error(
+            "Unexpected response format from Hugging Face API",
+            result
+          );
           // Fall through to fallback summary
         }
       }
