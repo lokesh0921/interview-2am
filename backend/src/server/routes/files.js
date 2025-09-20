@@ -71,7 +71,7 @@ router.post("/:id/resummarize", async (req, res, next) => {
     let doc = await Upload.findOne({ _id: id, userId });
     if (!doc) return res.status(404).json({ error: "Not found" });
 
-    let text = doc.text || "";
+    let text = doc.text || "no data to re-summarize";
     if (!text || doc.status === "failed") {
       if (!doc.gridFsId) throw new Error("No stored file to reprocess");
       const buffer = await bufferFromGridFS(doc.gridFsId);
@@ -83,8 +83,9 @@ router.post("/:id/resummarize", async (req, res, next) => {
       doc.text = text;
     }
 
-    const categories = await categorizeText(text || "");
-    const summary = await summarizeText(text || "");
+    const categories = await categorizeText(text || "no data available");
+    const summary = await summarizeText(text || "no data available to ");
+
     doc.categories = categories;
     doc.summary = summary;
     doc.status = "processed";

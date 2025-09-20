@@ -205,7 +205,7 @@ export async function summarizeText(text) {
   // Fallback simple summary if Hugging Face API fails or key not available
   const firstSentences = text
     .split(/(?<=[.!?])\s+/)
-    .slice(0, 3)
+    .slice(2, 5)
     .join(" ");
   return firstSentences || text.slice(0, 400);
 }
