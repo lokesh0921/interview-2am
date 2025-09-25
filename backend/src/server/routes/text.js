@@ -12,15 +12,15 @@ router.get("/", async (req, res, next) => {
   try {
     const userId = req.user?.sub || req.user?.user?.id || req.user?.id;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    
+
     const { page = 1, limit = 20, q } = req.query;
     const filter = { userId };
-    
+
     // Add text search if query parameter is provided
     if (q) filter.$text = { $search: q };
-    
+
     const skip = (Number(page) - 1) * Number(limit);
-    
+
     const [items, total] = await Promise.all([
       Upload.find(filter, { text: 1, filename: 1, createdAt: 1, sourceType: 1 })
         .sort({ createdAt: -1 })
@@ -28,12 +28,52 @@ router.get("/", async (req, res, next) => {
         .limit(Number(limit)),
       Upload.countDocuments(filter),
     ]);
-    
-    res.json({ 
-      items, 
-      total, 
-      page: Number(page), 
-      limit: Number(limit) 
+
+    res.json({
+      items,
+      total,
+      page: Number(page),
+      limit: Number(limit),
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// New route to get all text data (not user-specific)
+router.get("/all", async (req, res, next) => {
+  try {
+    const userId = req.user?.sub || req.user?.user?.id || req.user?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { page = 1, limit = 20, q } = req.query;
+    const filter = {};
+
+    // Add text search if query parameter is provided
+    if (q) filter.$text = { $search: q };
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const [items, total] = await Promise.all([
+      Upload.find(filter, {
+        text: 1,
+        filename: 1,
+        createdAt: 1,
+        sourceType: 1,
+        summary: 1,
+        categories: 1,
+      })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+      Upload.countDocuments(filter),
+    ]);
+
+    res.json({
+      items,
+      total,
+      page: Number(page),
+      limit: Number(limit),
     });
   } catch (e) {
     next(e);
@@ -49,17 +89,24 @@ router.get("/:id", async (req, res, next) => {
   try {
     const userId = req.user?.sub || req.user?.user?.id || req.user?.id;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    
+
     const { id } = req.params;
     const document = await Upload.findOne(
       { _id: id, userId },
-      { text: 1, filename: 1, createdAt: 1, sourceType: 1, summary: 1, categories: 1 }
+      {
+        text: 1,
+        filename: 1,
+        createdAt: 1,
+        sourceType: 1,
+        summary: 1,
+        categories: 1,
+      }
     );
-    
+
     if (!document) {
       return res.status(404).json({ error: "Text document not found" });
     }
-    
+
     res.json({ item: document });
   } catch (e) {
     next(e);

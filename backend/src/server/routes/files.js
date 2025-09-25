@@ -40,6 +40,35 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+// New route to get all summaries (not user-specific)
+router.get("/all", async (req, res, next) => {
+  try {
+    const userId = req.user?.sub || req.user?.user?.id || req.user?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    const { type, category, from, to, q, page = 1, limit = 20 } = req.query;
+    const filter = {};
+    if (type) filter.sourceType = type;
+    if (category) filter.categories = category;
+    if (from || to) {
+      filter.createdAt = {};
+      if (from) filter.createdAt.$gte = new Date(from);
+      if (to) filter.createdAt.$lte = new Date(to);
+    }
+    if (q) filter.$text = { $search: q };
+    const skip = (Number(page) - 1) * Number(limit);
+    const [items, total] = await Promise.all([
+      Upload.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+      Upload.countDocuments(filter),
+    ]);
+    res.json({ items, total, page: Number(page), limit: Number(limit) });
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.delete("/:id", async (req, res, next) => {
   try {
     const userId = req.user?.sub || req.user?.user?.id || req.user?.id;
@@ -84,7 +113,8 @@ router.post("/:id/resummarize", async (req, res, next) => {
     }
 
     const categories = await categorizeText(text || "no data available");
-    const summary = await summarizeText(text || "no data available to ");
+    // Use the imported summarizeText function
+    const summary = await summarizeText(text || "no data available");
 
     doc.categories = categories;
     doc.summary = summary;
