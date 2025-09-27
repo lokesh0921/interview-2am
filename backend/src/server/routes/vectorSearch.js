@@ -294,25 +294,23 @@ router.get("/debug", authMiddleware.required, async (req, res) => {
     const DocumentSummary = getDocumentSummaryModel();
     const RawDocument = getRawDocumentModel();
 
-    // Get database stats
+    // Get database stats (global access)
     const totalSummaries = await DocumentSummary.countDocuments();
     const totalRawDocs = await RawDocument.countDocuments();
-    const userRawDocs = await RawDocument.countDocuments({ userId });
-    const completedUserDocs = await RawDocument.countDocuments({
-      userId,
+    const completedDocs = await RawDocument.countDocuments({
       processing_status: "completed",
     });
 
-    // Get sample documents
-    const sampleRawDocs = await RawDocument.find({ userId })
+    // Get sample documents (global access)
+    const sampleRawDocs = await RawDocument.find({})
       .limit(3)
       .select("file_id filename processing_status created_at");
     const sampleSummaries = await DocumentSummary.find()
       .limit(3)
       .select("file_id summary_text extracted_tags");
 
-    // Check if user has any completed documents with summaries
-    const userCompletedWithSummaries = await DocumentSummary.aggregate([
+    // Check if there are any completed documents with summaries (global access)
+    const completedWithSummaries = await DocumentSummary.aggregate([
       {
         $lookup: {
           from: "raw_documents",
@@ -323,7 +321,6 @@ router.get("/debug", authMiddleware.required, async (req, res) => {
       },
       {
         $match: {
-          "raw_doc.userId": userId,
           "raw_doc.processing_status": "completed",
         },
       },
@@ -337,13 +334,12 @@ router.get("/debug", authMiddleware.required, async (req, res) => {
         database_stats: {
           total_summaries: totalSummaries,
           total_raw_docs: totalRawDocs,
-          user_raw_docs: userRawDocs,
-          completed_user_docs: completedUserDocs,
-          user_completed_with_summaries: userCompletedWithSummaries.length,
+          completed_docs: completedDocs,
+          completed_with_summaries: completedWithSummaries.length,
         },
         sample_raw_docs: sampleRawDocs,
         sample_summaries: sampleSummaries,
-        user_completed_with_summaries: userCompletedWithSummaries,
+        completed_with_summaries: completedWithSummaries,
       },
     });
   } catch (error) {
@@ -378,7 +374,7 @@ router.post("/simple-search", authMiddleware.required, async (req, res) => {
     const DocumentSummary = getDocumentSummaryModel();
     const RawDocument = getRawDocumentModel();
 
-    // Simple text search using MongoDB text search
+    // Simple text search using MongoDB text search (global access)
     const pipeline = [
       {
         $lookup: {
@@ -390,7 +386,6 @@ router.post("/simple-search", authMiddleware.required, async (req, res) => {
       },
       {
         $match: {
-          "raw_doc.userId": userId,
           "raw_doc.processing_status": "completed",
           $or: [
             { summary_text: { $regex: query, $options: "i" } },
@@ -410,19 +405,45 @@ router.post("/simple-search", authMiddleware.required, async (req, res) => {
           summary_text: 1,
           extracted_tags: 1,
           reference_date: 1,
-          "raw_doc.filename": 1,
-          "raw_doc.upload_date": 1,
-          "raw_doc.file_size": 1,
-          "raw_doc.mime_type": 1,
+          filename: { $arrayElemAt: ["$raw_doc.filename", 0] },
+          upload_date: { $arrayElemAt: ["$raw_doc.upload_date", 0] },
+          file_size: { $arrayElemAt: ["$raw_doc.file_size", 0] },
+          mime_type: { $arrayElemAt: ["$raw_doc.mime_type", 0] },
         },
       },
     ];
 
-    const results = await DocumentSummary.aggregate(pipeline);
+    let results = await DocumentSummary.aggregate(pipeline);
+
+    // Post-process results to ensure proper structure
+    results = results.map((result) => ({
+      ...result,
+      filename: result.filename || "Unknown filename",
+      upload_date: result.upload_date || new Date(),
+      file_size: result.file_size || 0,
+      mime_type: result.mime_type || "unknown",
+      summary_text: result.summary_text || "No summary available",
+      extracted_tags: result.extracted_tags || {
+        industries: [],
+        sectors: [],
+        stock_names: [],
+        general_tags: [],
+      },
+    }));
 
     console.log(
       `[VectorSearch API] Simple search found ${results.length} results`
     );
+
+    if (results.length > 0) {
+      console.log(`[VectorSearch API] Sample simple search result:`, {
+        file_id: results[0].file_id,
+        filename: results[0].filename,
+        upload_date: results[0].upload_date,
+        file_size: results[0].file_size,
+        reference_date: results[0].reference_date,
+      });
+    }
 
     res.json({
       success: true,
@@ -453,7 +474,9 @@ router.get("/all-documents", authMiddleware.required, async (req, res) => {
       sortOrder = "desc",
     } = req.query;
 
-    console.log(`[VectorSearch] Getting all documents for user: ${userId}`);
+    console.log(
+      `[VectorSearch] Getting all documents (global access) for user: ${userId}`
+    );
 
     const options = {
       page: parseInt(page),
@@ -465,7 +488,7 @@ router.get("/all-documents", authMiddleware.required, async (req, res) => {
     const result = await getUserDocuments(userId, options);
 
     console.log(
-      `[VectorSearch] Found ${result.documents.length} documents for user`
+      `[VectorSearch] Found ${result.documents.length} documents (global access)`
     );
 
     // Transform the data to match the expected format for Summary/Dashboard pages

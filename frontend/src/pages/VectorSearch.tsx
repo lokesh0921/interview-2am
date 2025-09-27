@@ -29,19 +29,20 @@ interface SearchResult {
   };
   reference_date?: string;
   similarity_score: number;
-  raw_doc: {
-    filename: string;
-    upload_date: string;
-    file_size: number;
-    mime_type: string;
-  };
+  filename: string;
+  upload_date: string;
+  file_size: number;
+  mime_type: string;
 }
 
 interface SearchResponse {
-  query: string;
-  results: SearchResult[];
-  total_results: number;
-  search_options: any;
+  success: boolean;
+  data: {
+    query: string;
+    results: SearchResult[];
+    total_results: number;
+    search_options: any;
+  };
 }
 
 interface AvailableTags {
@@ -236,12 +237,17 @@ export default function VectorSearch() {
       console.log(`[VectorSearch Frontend] Response data:`, responseData);
 
       if (responseData.success && responseData.data) {
-        setSearchResults(responseData.data.results || []);
+        const results = responseData.data.results || [];
         console.log(
-          `[VectorSearch Frontend] Set ${
-            responseData.data.results?.length || 0
-          } search results`
+          `[VectorSearch Frontend] Set ${results.length} search results`
         );
+        if (results.length > 0) {
+          console.log(
+            `[VectorSearch Frontend] Sample result structure:`,
+            results[0]
+          );
+        }
+        setSearchResults(results);
 
         toast({
           title: "Search Complete",
@@ -319,7 +325,17 @@ export default function VectorSearch() {
       );
 
       if (responseData.success && responseData.data) {
-        setSearchResults(responseData.data.results || []);
+        const results = responseData.data.results || [];
+        console.log(
+          `[VectorSearch Frontend] Simple search found ${results.length} results`
+        );
+        if (results.length > 0) {
+          console.log(
+            `[VectorSearch Frontend] Sample simple search result:`,
+            results[0]
+          );
+        }
+        setSearchResults(results);
         toast({
           title: "Simple Search Complete",
           description: `Found ${responseData.data.total_results || 0} results`,
@@ -371,8 +387,8 @@ export default function VectorSearch() {
       if (responseData.success && responseData.data) {
         const stats = responseData.data.database_stats;
         toast({
-          title: "Debug Check Complete",
-          description: `DB: ${stats.total_raw_docs} raw docs, ${stats.total_summaries} summaries, ${stats.user_raw_docs} user docs, ${stats.completed_user_docs} completed`,
+          title: "Debug Check Complete (Global Access)",
+          description: `DB: ${stats.total_raw_docs} raw docs, ${stats.total_summaries} summaries, ${stats.completed_docs} completed, ${stats.completed_with_summaries} with summaries`,
         });
       } else {
         throw new Error("Invalid debug response format");
@@ -424,7 +440,11 @@ export default function VectorSearch() {
     setMinScore(0.1);
   };
 
-  const formatFileSize = (bytes: number) => {
+  const formatFileSize = (bytes: number | null | undefined) => {
+    if (!bytes || isNaN(bytes) || bytes < 0) {
+      console.warn(`[VectorSearch] Invalid file size: ${bytes}`);
+      return "Unknown size";
+    }
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
     const sizes = ["Bytes", "KB", "MB", "GB"];
@@ -432,17 +452,35 @@ export default function VectorSearch() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+  const formatDate = (dateString: string | Date | null | undefined) => {
+    if (!dateString) return "Unknown date";
+
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        console.warn(`[VectorSearch] Invalid date: ${dateString}`);
+        return "Invalid date";
+      }
+      return date.toLocaleDateString();
+    } catch (error) {
+      console.warn(
+        `[VectorSearch] Date formatting error:`,
+        error,
+        `Input: ${dateString}`
+      );
+      return "Invalid date";
+    }
   };
+
+  // console.log("upload_date raw value:", searchResults[0].raw_doc.upload_date);
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Vector Search</h1>
         <p className="text-muted-foreground">
-          Semantic search across your documents with AI-powered summarization
-          and tagging
+          Semantic search across all documents with AI-powered summarization and
+          tagging (Global Access)
         </p>
 
         {documentStats && (
@@ -507,7 +545,8 @@ export default function VectorSearch() {
             <CardHeader>
               <CardTitle>Semantic Search</CardTitle>
               <CardDescription>
-                Search your documents using natural language queries
+                Search all documents using natural language queries (Global
+                Access)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -696,12 +735,11 @@ export default function VectorSearch() {
                           <div className="flex justify-between items-start">
                             <div>
                               <CardTitle className="text-lg">
-                                {result.raw_doc.filename}
+                                {result.filename || "Unknown filename"}
                               </CardTitle>
                               <CardDescription>
-                                {formatFileSize(result.raw_doc.file_size)} •
-                                Uploaded{" "}
-                                {formatDate(result.raw_doc.upload_date)}
+                                {formatFileSize(result.file_size)} • Uploaded{" "}
+                                {formatDate(result.upload_date)}
                                 {result.reference_date &&
                                   ` • Reference: ${formatDate(
                                     result.reference_date
@@ -710,17 +748,23 @@ export default function VectorSearch() {
                             </div>
                             <div className="text-right">
                               <div className="text-sm font-medium">
-                                {(result.similarity_score * 100).toFixed(1)}%
-                                match
+                                {result.similarity_score &&
+                                !isNaN(result.similarity_score)
+                                  ? `${(result.similarity_score * 100).toFixed(
+                                      1
+                                    )}% match`
+                                  : "No score"}
                               </div>
                             </div>
                           </div>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-sm mb-3">{result.summary_text}</p>
+                          <p className="text-sm mb-3">
+                            {result.summary_text || "No summary available"}
+                          </p>
 
                           <div className="flex flex-wrap gap-2 mb-3">
-                            {result.extracted_tags.industries.map((tag) => (
+                            {result.extracted_tags?.industries?.map((tag) => (
                               <span
                                 key={tag}
                                 className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
@@ -728,7 +772,7 @@ export default function VectorSearch() {
                                 {tag}
                               </span>
                             ))}
-                            {result.extracted_tags.sectors.map((tag) => (
+                            {result.extracted_tags?.sectors?.map((tag) => (
                               <span
                                 key={tag}
                                 className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded"
@@ -736,7 +780,7 @@ export default function VectorSearch() {
                                 {tag}
                               </span>
                             ))}
-                            {result.extracted_tags.stock_names.map((tag) => (
+                            {result.extracted_tags?.stock_names?.map((tag) => (
                               <span
                                 key={tag}
                                 className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded"
@@ -770,7 +814,7 @@ export default function VectorSearch() {
               <CardTitle>Upload Document for Vector Search</CardTitle>
               <CardDescription>
                 Upload a new document to be processed with AI summarization and
-                vector search
+                vector search (Available to all users)
               </CardDescription>
             </CardHeader>
             <CardContent>

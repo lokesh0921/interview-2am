@@ -66,7 +66,8 @@ export default function Summary() {
       <div>
         <h1 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-4">Summary</h1>
         <p className="text-sm sm:text-base text-gray-600">
-          View and compare raw data with AI-generated summaries from all users.
+          View and compare raw data with AI-generated summaries from all users
+          (Global Access).
         </p>
       </div>
 

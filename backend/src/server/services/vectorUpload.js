@@ -220,8 +220,8 @@ export async function getFileContent(fileId, userId) {
 }
 
 /**
- * Get all documents for a user with pagination
- * @param {string} userId - User ID
+ * Get all documents with pagination (global access)
+ * @param {string} userId - User ID (kept for compatibility but not used)
  * @param {Object} options - Query options
  * @returns {Promise<Object>} - Paginated documents
  */
@@ -237,7 +237,8 @@ export async function getUserDocuments(userId, options = {}) {
     status = null,
   } = options;
 
-  const query = { userId };
+  // Global access - no user filter
+  const query = {};
   if (status) {
     query.processing_status = status;
   }
@@ -245,7 +246,7 @@ export async function getUserDocuments(userId, options = {}) {
   const skip = (page - 1) * limit;
   const sort = { [sortBy]: sortOrder === "desc" ? -1 : 1 };
 
-  // Use aggregation to join with summaries
+  // Use aggregation to join with summaries (global access)
   const pipeline = [
     { $match: query },
     {

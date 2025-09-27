@@ -37,17 +37,17 @@ export async function semanticSearch(query, userId, options = {}) {
     const DocumentSummary = getDocumentSummaryModel();
     const RawDocument = getRawDocumentModel();
 
-    // Debug: Check total documents for this user
-    console.log(`[VectorSearch] Checking database connection and documents...`);
+    // Debug: Check total documents (global access)
+    console.log(
+      `[VectorSearch] Checking database connection and documents (global access)...`
+    );
 
     // Test database connection and get stats
-    let totalDocs, totalRawDocs, userRawDocs, completedUserDocs;
+    let totalDocs, totalRawDocs, completedDocs;
     try {
       totalDocs = await DocumentSummary.countDocuments();
       totalRawDocs = await RawDocument.countDocuments();
-      userRawDocs = await RawDocument.countDocuments({ userId });
-      completedUserDocs = await RawDocument.countDocuments({
-        userId,
+      completedDocs = await RawDocument.countDocuments({
         processing_status: "completed",
       });
 
@@ -57,13 +57,12 @@ export async function semanticSearch(query, userId, options = {}) {
       throw new Error(`Database connection failed: ${dbError.message}`);
     }
 
-    console.log(`[VectorSearch] Database stats:`);
+    console.log(`[VectorSearch] Database stats (global):`);
     console.log(`  - Total DocumentSummary records: ${totalDocs}`);
     console.log(`  - Total RawDocument records: ${totalRawDocs}`);
-    console.log(`  - User RawDocument records: ${userRawDocs}`);
-    console.log(`  - Completed User RawDocument records: ${completedUserDocs}`);
+    console.log(`  - Completed RawDocument records: ${completedDocs}`);
 
-    const userDocs = await DocumentSummary.aggregate([
+    const allDocs = await DocumentSummary.aggregate([
       {
         $lookup: {
           from: "raw_documents",
@@ -74,26 +73,23 @@ export async function semanticSearch(query, userId, options = {}) {
       },
       {
         $match: {
-          "raw_doc.userId": userId,
           "raw_doc.processing_status": "completed",
         },
       },
     ]);
 
     console.log(
-      `[VectorSearch] User documents with completed processing: ${userDocs.length}`
+      `[VectorSearch] All documents with completed processing: ${allDocs.length}`
     );
 
-    if (userDocs.length === 0) {
-      console.log(
-        `[VectorSearch] No completed documents found for user ${userId}`
-      );
+    if (allDocs.length === 0) {
+      console.log(`[VectorSearch] No completed documents found in database`);
 
       // Let's also check if there are any documents at all (for debugging)
-      const allUserDocs = await RawDocument.find({ userId }).limit(5);
+      const allRawDocs = await RawDocument.find({}).limit(5);
       console.log(
-        `[VectorSearch] All user documents (first 5):`,
-        allUserDocs.map((doc) => ({
+        `[VectorSearch] All documents (first 5):`,
+        allRawDocs.map((doc) => ({
           file_id: doc.file_id,
           filename: doc.filename,
           processing_status: doc.processing_status,
@@ -108,16 +104,15 @@ export async function semanticSearch(query, userId, options = {}) {
         search_options: options,
         debug_info: {
           total_docs: totalDocs,
-          user_docs: userDocs.length,
-          user_id: userId,
-          all_user_docs: allUserDocs.length,
+          all_docs: allDocs.length,
+          all_raw_docs: allRawDocs.length,
         },
       };
     }
 
-    // Step 2: Build aggregation pipeline for vector search
+    // Step 2: Build aggregation pipeline for vector search (global access)
     const pipeline = [
-      // Match documents that belong to the user
+      // Match all completed documents (global access)
       {
         $lookup: {
           from: "raw_documents",
@@ -128,7 +123,6 @@ export async function semanticSearch(query, userId, options = {}) {
       },
       {
         $match: {
-          "raw_doc.userId": userId,
           "raw_doc.processing_status": "completed",
         },
       },
@@ -256,7 +250,7 @@ export async function semanticSearch(query, userId, options = {}) {
         $limit: limit,
       },
 
-      // Project final fields
+      // Project final fields and flatten raw_doc structure
       {
         $project: {
           file_id: 1,
@@ -268,10 +262,10 @@ export async function semanticSearch(query, userId, options = {}) {
           similarity_score: 1,
           ...(includeMetadata
             ? {
-                "raw_doc.filename": 1,
-                "raw_doc.upload_date": 1,
-                "raw_doc.file_size": 1,
-                "raw_doc.mime_type": 1,
+                filename: { $arrayElemAt: ["$raw_doc.filename", 0] },
+                upload_date: { $arrayElemAt: ["$raw_doc.upload_date", 0] },
+                file_size: { $arrayElemAt: ["$raw_doc.file_size", 0] },
+                mime_type: { $arrayElemAt: ["$raw_doc.mime_type", 0] },
               }
             : {}),
         },
@@ -281,7 +275,24 @@ export async function semanticSearch(query, userId, options = {}) {
     console.log(`[VectorSearch] Executing aggregation pipeline...`);
     console.log(`[VectorSearch] Pipeline stages:`, pipeline.length);
 
-    const results = await DocumentSummary.aggregate(pipeline);
+    let results = await DocumentSummary.aggregate(pipeline);
+
+    // Post-process results to ensure proper structure
+    results = results.map((result) => ({
+      ...result,
+      filename: result.filename || "Unknown filename",
+      upload_date: result.upload_date || new Date(),
+      file_size: result.file_size || 0,
+      mime_type: result.mime_type || "unknown",
+      similarity_score: result.similarity_score || 0,
+      summary_text: result.summary_text || "No summary available",
+      extracted_tags: result.extracted_tags || {
+        industries: [],
+        sectors: [],
+        stock_names: [],
+        general_tags: [],
+      },
+    }));
 
     console.log(`[VectorSearch] Aggregation completed. Results:`, {
       query,
@@ -294,6 +305,10 @@ export async function semanticSearch(query, userId, options = {}) {
               file_id: results[0].file_id,
               similarity_score: results[0].similarity_score,
               has_embedding: !!results[0].semantic_embedding,
+              filename: results[0].filename,
+              upload_date: results[0].upload_date,
+              file_size: results[0].file_size,
+              reference_date: results[0].reference_date,
             }
           : null,
     });
@@ -305,7 +320,7 @@ export async function semanticSearch(query, userId, options = {}) {
       search_options: options,
       debug_info: {
         total_docs: totalDocs,
-        user_docs: userDocs.length,
+        all_docs: allDocs.length,
         pipeline_stages: pipeline.length,
         results_count: results.length,
       },
@@ -317,8 +332,8 @@ export async function semanticSearch(query, userId, options = {}) {
 }
 
 /**
- * Get all available tags for filtering
- * @param {string} userId - User ID for authorization
+ * Get all available tags for filtering (global access)
+ * @param {string} userId - User ID (kept for compatibility but not used)
  * @returns {Promise<Object>} - Available tags
  */
 export async function getAvailableTags(userId) {
@@ -327,7 +342,7 @@ export async function getAvailableTags(userId) {
     const RawDocument = getRawDocumentModel();
 
     const pipeline = [
-      // Match documents that belong to the user
+      // Match all completed documents (global access)
       {
         $lookup: {
           from: "raw_documents",
@@ -338,7 +353,6 @@ export async function getAvailableTags(userId) {
       },
       {
         $match: {
-          "raw_doc.userId": userId,
           "raw_doc.processing_status": "completed",
         },
       },
@@ -405,8 +419,8 @@ export async function getAvailableTags(userId) {
 }
 
 /**
- * Get date range for documents
- * @param {string} userId - User ID for authorization
+ * Get date range for documents (global access)
+ * @param {string} userId - User ID (kept for compatibility but not used)
  * @returns {Promise<Object>} - Date range information
  */
 export async function getDateRange(userId) {
@@ -415,7 +429,7 @@ export async function getDateRange(userId) {
     const RawDocument = getRawDocumentModel();
 
     const pipeline = [
-      // Match documents that belong to the user
+      // Match all completed documents (global access)
       {
         $lookup: {
           from: "raw_documents",
@@ -426,7 +440,6 @@ export async function getDateRange(userId) {
       },
       {
         $match: {
-          "raw_doc.userId": userId,
           "raw_doc.processing_status": "completed",
           reference_date: { $exists: true, $ne: null },
         },
@@ -458,8 +471,8 @@ export async function getDateRange(userId) {
 }
 
 /**
- * Get document statistics for a user
- * @param {string} userId - User ID for authorization
+ * Get document statistics (global access)
+ * @param {string} userId - User ID (kept for compatibility but not used)
  * @returns {Promise<Object>} - Document statistics
  */
 export async function getDocumentStats(userId) {
@@ -468,7 +481,7 @@ export async function getDocumentStats(userId) {
     const RawDocument = getRawDocumentModel();
 
     const pipeline = [
-      // Match documents that belong to the user
+      // Match all documents (global access)
       {
         $lookup: {
           from: "raw_documents",
@@ -479,7 +492,7 @@ export async function getDocumentStats(userId) {
       },
       {
         $match: {
-          "raw_doc.userId": userId,
+          // No user filter - show all documents
         },
       },
 
@@ -494,12 +507,11 @@ export async function getDocumentStats(userId) {
 
     const statusCounts = await DocumentSummary.aggregate(pipeline);
 
-    // Get total document count
-    const totalDocs = await RawDocument.countDocuments({ userId });
+    // Get total document count (global)
+    const totalDocs = await RawDocument.countDocuments({});
 
-    // Get processed documents count
+    // Get processed documents count (global)
     const processedDocs = await RawDocument.countDocuments({
-      userId,
       processing_status: "completed",
     });
 

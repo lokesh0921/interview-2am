@@ -169,7 +169,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold">Dashboard</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Analytics and summaries from all users
+            Analytics and summaries from all users (Global Access)
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
