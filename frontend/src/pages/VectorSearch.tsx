@@ -1,0 +1,564 @@
+import { useState, useEffect } from "react";
+import { useSupabase } from "../supabase/SupabaseProvider";
+import { apiFetch } from "../lib/api";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
+import { useToast } from "../hooks/use-toast";
+import VectorFileUploader from "../components/VectorFileUploader";
+
+interface SearchResult {
+  file_id: string;
+  summary_text: string;
+  extracted_tags: {
+    industries: string[];
+    sectors: string[];
+    stock_names: string[];
+    general_tags: string[];
+  };
+  reference_date?: string;
+  similarity_score: number;
+  raw_doc: {
+    filename: string;
+    upload_date: string;
+    file_size: number;
+    mime_type: string;
+  };
+}
+
+interface SearchResponse {
+  query: string;
+  results: SearchResult[];
+  total_results: number;
+  search_options: any;
+}
+
+interface AvailableTags {
+  industries: string[];
+  sectors: string[];
+  stock_names: string[];
+  general_tags: string[];
+}
+
+interface DocumentStats {
+  total_documents: number;
+  processed_documents: number;
+  processing_status: Record<string, number>;
+}
+
+export default function VectorSearch() {
+  const { session } = useSupabase();
+  const { toast } = useToast();
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [lastSearchQuery, setLastSearchQuery] = useState("");
+
+  // Filter state
+  const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
+  const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
+  const [selectedStockNames, setSelectedStockNames] = useState<string[]>([]);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [minScore, setMinScore] = useState(0.7);
+
+  // Data state
+  const [availableTags, setAvailableTags] = useState<AvailableTags>({
+    industries: [],
+    sectors: [],
+    stock_names: [],
+    general_tags: [],
+  });
+  const [documentStats, setDocumentStats] = useState<DocumentStats | null>(
+    null
+  );
+  const [activeTab, setActiveTab] = useState<"search" | "upload">("search");
+
+  // Load initial data
+  useEffect(() => {
+    if (session) {
+      loadAvailableTags();
+      loadDocumentStats();
+    }
+  }, [session]);
+
+  const loadAvailableTags = async () => {
+    try {
+      const response = await apiFetch("/vector-search/tags");
+      setAvailableTags(response.data);
+    } catch (error) {
+      console.error("Failed to load tags:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load available tags",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadDocumentStats = async () => {
+    try {
+      const response = await apiFetch("/vector-search/stats");
+      setDocumentStats(response.data);
+    } catch (error) {
+      console.error("Failed to load stats:", error);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a search query",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSearching(true);
+    setLastSearchQuery(searchQuery);
+
+    try {
+      const searchOptions = {
+        limit: 20,
+        minScore,
+        industries: selectedIndustries,
+        sectors: selectedSectors,
+        stockNames: selectedStockNames,
+        dateFrom: dateFrom || null,
+        dateTo: dateTo || null,
+        includeMetadata: true,
+      };
+
+      const response: SearchResponse = await apiFetch("/vector-search/search", {
+        method: "POST",
+        body: JSON.stringify({
+          query: searchQuery,
+          options: searchOptions,
+        }),
+      });
+
+      setSearchResults(response.results || []);
+
+      toast({
+        title: "Search Complete",
+        description: `Found ${response.total_results || 0} results`,
+      });
+    } catch (error) {
+      console.error("Search failed:", error);
+      setSearchResults([]); // Ensure searchResults is always an array
+      toast({
+        title: "Search Error",
+        description: "Failed to perform search",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleTagToggle = (
+    tag: string,
+    type: "industries" | "sectors" | "stock_names"
+  ) => {
+    const setters = {
+      industries: setSelectedIndustries,
+      sectors: setSelectedSectors,
+      stock_names: setSelectedStockNames,
+    };
+
+    const currentValues = {
+      industries: selectedIndustries,
+      sectors: selectedSectors,
+      stock_names: selectedStockNames,
+    };
+
+    const setter = setters[type];
+    const current = currentValues[type];
+
+    if (current.includes(tag)) {
+      setter(current.filter((t) => t !== tag));
+    } else {
+      setter([...current, tag]);
+    }
+  };
+
+  const clearFilters = () => {
+    setSelectedIndustries([]);
+    setSelectedSectors([]);
+    setSelectedStockNames([]);
+    setDateFrom("");
+    setDateTo("");
+    setMinScore(0.7);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  return (
+    <div className="container mx-auto p-6 max-w-7xl">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Vector Search</h1>
+        <p className="text-muted-foreground">
+          Semantic search across your documents with AI-powered summarization
+          and tagging
+        </p>
+
+        {documentStats && (
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Documents
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {documentStats.total_documents}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Processed</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {documentStats.processed_documents}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Processing Rate
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {documentStats.total_documents > 0
+                    ? Math.round(
+                        (documentStats.processed_documents /
+                          documentStats.total_documents) *
+                          100
+                      )
+                    : 0}
+                  %
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as "search" | "upload")}
+      >
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="search">Search Documents</TabsTrigger>
+          <TabsTrigger value="upload">Upload New Document</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="search" className="space-y-6">
+          {/* Search Interface */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Semantic Search</CardTitle>
+              <CardDescription>
+                Search your documents using natural language queries
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter your search query..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleSearch}
+                  disabled={isSearching}
+                  className="px-8"
+                >
+                  {isSearching ? "Searching..." : "Search"}
+                </Button>
+              </div>
+
+              {/* Filters */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    Min Similarity Score
+                  </label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={minScore}
+                    onChange={(e) => setMinScore(parseFloat(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    Date From
+                  </label>
+                  <Input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    Date To
+                  </label>
+                  <Input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    variant="outline"
+                    onClick={clearFilters}
+                    className="w-full"
+                  >
+                    Clear Filters
+                  </Button>
+                </div>
+              </div>
+
+              {/* Tag Filters */}
+              <div className="space-y-4">
+                {availableTags.industries.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Industries
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {availableTags.industries.map((industry) => (
+                        <Button
+                          key={industry}
+                          variant={
+                            selectedIndustries.includes(industry)
+                              ? "default"
+                              : "outline"
+                          }
+                          size="sm"
+                          onClick={() =>
+                            handleTagToggle(industry, "industries")
+                          }
+                        >
+                          {industry}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {availableTags.sectors.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Sectors
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {availableTags.sectors.map((sector) => (
+                        <Button
+                          key={sector}
+                          variant={
+                            selectedSectors.includes(sector)
+                              ? "default"
+                              : "outline"
+                          }
+                          size="sm"
+                          onClick={() => handleTagToggle(sector, "sectors")}
+                        >
+                          {sector}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {availableTags.stock_names.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Companies
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {availableTags.stock_names.map((stock) => (
+                        <Button
+                          key={stock}
+                          variant={
+                            selectedStockNames.includes(stock)
+                              ? "default"
+                              : "outline"
+                          }
+                          size="sm"
+                          onClick={() => handleTagToggle(stock, "stock_names")}
+                        >
+                          {stock}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Search Results */}
+          {lastSearchQuery && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Search Results</CardTitle>
+                <CardDescription>
+                  Results for: "{lastSearchQuery}" ({searchResults?.length || 0}{" "}
+                  found)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!searchResults || searchResults.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No results found. Try adjusting your search query or
+                    filters.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {searchResults.map((result) => (
+                      <Card
+                        key={result.file_id}
+                        className="border-l-4 border-l-blue-500"
+                      >
+                        <CardHeader className="pb-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="text-lg">
+                                {result.raw_doc.filename}
+                              </CardTitle>
+                              <CardDescription>
+                                {formatFileSize(result.raw_doc.file_size)} •
+                                Uploaded{" "}
+                                {formatDate(result.raw_doc.upload_date)}
+                                {result.reference_date &&
+                                  ` • Reference: ${formatDate(
+                                    result.reference_date
+                                  )}`}
+                              </CardDescription>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-medium">
+                                {(result.similarity_score * 100).toFixed(1)}%
+                                match
+                              </div>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm mb-3">{result.summary_text}</p>
+
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {result.extracted_tags.industries.map((tag) => (
+                              <span
+                                key={tag}
+                                className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {result.extracted_tags.sectors.map((tag) => (
+                              <span
+                                key={tag}
+                                className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {result.extracted_tags.stock_names.map((tag) => (
+                              <span
+                                key={tag}
+                                className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline">
+                              View Details
+                            </Button>
+                            <Button size="sm" variant="outline">
+                              Download
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="upload">
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload Document for Vector Search</CardTitle>
+              <CardDescription>
+                Upload a new document to be processed with AI summarization and
+                vector search
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <VectorFileUploader
+                onUploadSuccess={(result) => {
+                  // Refresh available tags and stats after successful upload
+                  loadAvailableTags();
+                  loadDocumentStats();
+                  toast({
+                    title: "Upload Complete",
+                    description:
+                      "Document has been processed and is now searchable",
+                  });
+                }}
+                onUploadError={(error) => {
+                  console.error("Upload failed:", error);
+                }}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

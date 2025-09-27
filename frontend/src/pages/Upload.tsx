@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useSupabase } from "../supabase/SupabaseProvider";
 import FileUploader from "../components/FileUploader";
 import FilePreview from "../components/FilePreview";
+import { useToast } from "../hooks/use-toast";
 
 export default function Upload() {
   const { session } = useSupabase();
+  const { toast } = useToast();
   const [files, setFiles] = useState<FileList | null>(null);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,24 +35,44 @@ export default function Upload() {
 
     setLoading(true);
     try {
-      const form = new FormData();
-      Array.from(files).forEach((f) => form.append("files", f));
       const token =
         session?.access_token || localStorage.getItem("sb:token") || "";
       const apiBase =
         (import.meta as any).env?.VITE_API_BASE || "http://localhost:4001/api";
-      const res = await fetch(`${apiBase}/upload`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: form,
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const json = await res.json();
-      setResults(json.results);
+
+      // Process files one by one for vector search
+      const results = [];
+      for (const file of Array.from(files)) {
+        const form = new FormData();
+        form.append("file", file); // Single file for vector search
+
+        const res = await fetch(`${apiBase}/vector-search/upload`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: form,
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+        const json = await res.json();
+        results.push(json.data);
+      }
+
+      setResults(results);
       setShowPreview(false);
       setFiles(null);
+
+      toast({
+        title: "Upload Successful",
+        description: `Successfully uploaded and processed ${results.length} file(s)`,
+        variant: "default",
+      });
     } catch (e: any) {
-      alert(e.message);
+      console.error("Upload error:", e);
+      toast({
+        title: "Upload Failed",
+        description: e.message || "Failed to upload files",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

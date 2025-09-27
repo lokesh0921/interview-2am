@@ -19,3 +19,39 @@ export async function extractFromImage(buffer) {
   const { data } = await Tesseract.recognize(buffer, "eng");
   return data.text || "";
 }
+
+/**
+ * Extract text from a file based on its MIME type
+ * @param {Object} file - Multer file object with buffer and mimetype
+ * @returns {Promise<string>} - Extracted text content
+ */
+export async function extractTextFromFile(file) {
+  const { buffer, mimetype } = file;
+
+  try {
+    switch (mimetype) {
+      case "application/pdf":
+        return await extractFromPdf(buffer);
+
+      case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+      case "application/msword":
+        return await extractFromDocx(buffer);
+
+      case "text/plain":
+        return await extractFromTxt(buffer);
+
+      case "image/jpeg":
+      case "image/png":
+      case "image/tiff":
+        return await extractFromImage(buffer);
+
+      default:
+        throw new Error(`Unsupported file type: ${mimetype}`);
+    }
+  } catch (error) {
+    console.error(`Text extraction failed for ${mimetype}:`, error);
+    throw new Error(
+      `Failed to extract text from ${mimetype}: ${error.message}`
+    );
+  }
+}
