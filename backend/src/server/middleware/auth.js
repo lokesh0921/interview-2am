@@ -53,13 +53,27 @@ function withAdminRole(user) {
 async function parseAuth(req) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
-  if (!token) return null;
+  if (!token) {
+    console.log("No token found in request");
+    return null;
+  }
 
+  console.log("Token found, attempting verification...");
   const viaJwks = await verifyWithJwks(token);
-  if (viaJwks) return withAdminRole(viaJwks);
+  if (viaJwks) {
+    console.log("Token verified via JWKS");
+    return withAdminRole(viaJwks);
+  }
 
+  console.log("JWKS verification failed, trying Supabase API...");
   const viaAPI = await verifyWithSupabaseAPI(token);
-  return withAdminRole(viaAPI);
+  if (viaAPI) {
+    console.log("Token verified via Supabase API");
+    return withAdminRole(viaAPI);
+  }
+
+  console.log("All verification methods failed");
+  return null;
 }
 
 export const authMiddleware = {

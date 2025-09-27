@@ -20,10 +20,20 @@ export default function Summary() {
     const loadItems = async () => {
       setLoading(true);
       try {
-        const { items } = await apiFetch("/files/all");
-        setItems(items);
+        console.log("[Summary] Loading items from vector search database...");
+        const response = await apiFetch("/vector-search/all-documents");
+        console.log("[Summary] API response:", response);
+
+        if (response.success && response.items) {
+          setItems(response.items);
+          console.log(`[Summary] Loaded ${response.items.length} items`);
+        } else {
+          console.error("[Summary] Invalid response format:", response);
+          setItems([]);
+        }
       } catch (error) {
-        console.error("Error loading items:", error);
+        console.error("[Summary] Error loading items:", error);
+        setItems([]);
       } finally {
         setLoading(false);
       }

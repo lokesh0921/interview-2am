@@ -26,10 +26,21 @@ export default function Dashboard() {
   const load = async () => {
     setLoading(true);
     try {
-      const { items } = await apiFetch("/files/all");
-      setItems(items);
+      console.log("[Dashboard] Loading items from vector search database...");
+      const response = await apiFetch("/vector-search/all-documents");
+      console.log("[Dashboard] API response:", response);
+
+      if (response.success && response.items) {
+        setItems(response.items);
+        console.log(`[Dashboard] Loaded ${response.items.length} items`);
+      } else {
+        console.error("[Dashboard] Invalid response format:", response);
+        setItems([]);
+      }
     } catch (e: any) {
+      console.error("[Dashboard] Error loading items:", e);
       alert(e.message);
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -42,9 +53,20 @@ export default function Dashboard() {
   const del = async (id: string) => {
     if (!confirm("Delete this item?")) return;
     try {
-      await apiFetch(`/files/${id}`, { method: "DELETE" });
-      setItems((prev) => prev.filter((it) => it._id !== id));
+      console.log(`[Dashboard] Deleting document ${id}`);
+      const response = await apiFetch(`/vector-search/documents/${id}`, {
+        method: "DELETE",
+      });
+      console.log(`[Dashboard] Delete response:`, response);
+
+      if (response.success) {
+        setItems((prev) => prev.filter((it) => it._id !== id));
+        console.log(`[Dashboard] Document ${id} deleted successfully`);
+      } else {
+        throw new Error(response.error || "Delete failed");
+      }
     } catch (e: any) {
+      console.error(`[Dashboard] Error deleting document ${id}:`, e);
       alert(e.message);
     }
   };
@@ -52,13 +74,40 @@ export default function Dashboard() {
   const resummarize = async (id: string) => {
     setUpdatingId(id);
     try {
-      const { item } = await apiFetch(`/files/${id}/resummarize`, {
-        method: "POST",
-      });
-      setItems((prev) =>
-        prev.map((it) => (it._id === id ? { ...it, ...item } : it))
+      console.log(`[Dashboard] Re-summarizing document ${id}`);
+      const response = await apiFetch(
+        `/vector-search/documents/${id}/resummarize`,
+        {
+          method: "POST",
+        }
       );
+      console.log(`[Dashboard] Re-summarize response:`, response);
+
+      if (response.success && response.data) {
+        // Update the item with new summary data
+        setItems((prev) =>
+          prev.map((it) =>
+            it._id === id
+              ? {
+                  ...it,
+                  summary: response.data.summary,
+                  categories: response.data.extracted_tags
+                    ? [
+                        ...(response.data.extracted_tags.industries || []),
+                        ...(response.data.extracted_tags.sectors || []),
+                        ...(response.data.extracted_tags.stock_names || []),
+                      ]
+                    : it.categories,
+                }
+              : it
+          )
+        );
+        console.log(`[Dashboard] Document ${id} re-summarized successfully`);
+      } else {
+        throw new Error(response.error || "Re-summarize failed");
+      }
     } catch (e: any) {
+      console.error(`[Dashboard] Error re-summarizing document ${id}:`, e);
       alert(e.message);
     } finally {
       setUpdatingId(null);

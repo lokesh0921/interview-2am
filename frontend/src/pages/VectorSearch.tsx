@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useSupabase } from "../supabase/SupabaseProvider";
-import { apiFetch } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import {
@@ -74,7 +73,7 @@ export default function VectorSearch() {
   const [selectedStockNames, setSelectedStockNames] = useState<string[]>([]);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [minScore, setMinScore] = useState(0.7);
+  const [minScore, setMinScore] = useState(0.1);
 
   // Data state
   const [availableTags, setAvailableTags] = useState<AvailableTags>({
@@ -98,8 +97,32 @@ export default function VectorSearch() {
 
   const loadAvailableTags = async () => {
     try {
-      const response = await apiFetch("/vector-search/tags");
-      setAvailableTags(response.data);
+      const token =
+        session?.access_token || localStorage.getItem("sb:token") || "";
+      console.log(
+        "Loading tags with token:",
+        token ? "Token present" : "No token"
+      );
+      console.log("Session:", session ? "Session present" : "No session");
+
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
+        }/vector-search/tags`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+
+      const data = await response.json();
+      setAvailableTags(data.data);
     } catch (error) {
       console.error("Failed to load tags:", error);
       toast({
@@ -112,8 +135,26 @@ export default function VectorSearch() {
 
   const loadDocumentStats = async () => {
     try {
-      const response = await apiFetch("/vector-search/stats");
-      setDocumentStats(response.data);
+      const token =
+        session?.access_token || localStorage.getItem("sb:token") || "";
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
+        }/vector-search/stats`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+
+      const data = await response.json();
+      setDocumentStats(data.data);
     } catch (error) {
       console.error("Failed to load stats:", error);
     }
@@ -129,6 +170,9 @@ export default function VectorSearch() {
       return;
     }
 
+    console.log(
+      `[VectorSearch Frontend] Starting search for: "${searchQuery}"`
+    );
     setIsSearching(true);
     setLastSearchQuery(searchQuery);
 
@@ -144,26 +188,200 @@ export default function VectorSearch() {
         includeMetadata: true,
       };
 
-      const response: SearchResponse = await apiFetch("/vector-search/search", {
+      console.log(`[VectorSearch Frontend] Search options:`, searchOptions);
+
+      const token =
+        session?.access_token || localStorage.getItem("sb:token") || "";
+      console.log(
+        `[VectorSearch Frontend] Using token:`,
+        token ? "Token present" : "No token"
+      );
+
+      const apiUrl = `${
+        import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
+      }/vector-search/search`;
+
+      console.log(`[VectorSearch Frontend] Making request to: ${apiUrl}`);
+
+      const response = await fetch(apiUrl, {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           query: searchQuery,
           options: searchOptions,
         }),
       });
 
-      setSearchResults(response.results || []);
+      console.log(
+        `[VectorSearch Frontend] Response status: ${response.status}`
+      );
+      console.log(
+        `[VectorSearch Frontend] Response headers:`,
+        Object.fromEntries(response.headers.entries())
+      );
 
-      toast({
-        title: "Search Complete",
-        description: `Found ${response.total_results || 0} results`,
-      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(
+          `[VectorSearch Frontend] HTTP Error ${response.status}:`,
+          errorText
+        );
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const responseData: SearchResponse = await response.json();
+      console.log(`[VectorSearch Frontend] Response data:`, responseData);
+
+      if (responseData.success && responseData.data) {
+        setSearchResults(responseData.data.results || []);
+        console.log(
+          `[VectorSearch Frontend] Set ${
+            responseData.data.results?.length || 0
+          } search results`
+        );
+
+        toast({
+          title: "Search Complete",
+          description: `Found ${responseData.data.total_results || 0} results`,
+        });
+      } else {
+        console.error(
+          `[VectorSearch Frontend] Invalid response format:`,
+          responseData
+        );
+        setSearchResults([]);
+        toast({
+          title: "Search Error",
+          description: "Invalid response from server",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
-      console.error("Search failed:", error);
+      console.error("[VectorSearch Frontend] Search failed:", error);
       setSearchResults([]); // Ensure searchResults is always an array
       toast({
         title: "Search Error",
         description: "Failed to perform search",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSimpleSearch = async () => {
+    if (!searchQuery.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a search query",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log(
+      `[VectorSearch Frontend] Starting simple search for: "${searchQuery}"`
+    );
+    setIsSearching(true);
+    setLastSearchQuery(searchQuery);
+
+    try {
+      const token =
+        session?.access_token || localStorage.getItem("sb:token") || "";
+
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
+        }/vector-search/simple-search`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            query: searchQuery,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+
+      const responseData = await response.json();
+      console.log(
+        `[VectorSearch Frontend] Simple search response:`,
+        responseData
+      );
+
+      if (responseData.success && responseData.data) {
+        setSearchResults(responseData.data.results || []);
+        toast({
+          title: "Simple Search Complete",
+          description: `Found ${responseData.data.total_results || 0} results`,
+        });
+      } else {
+        throw new Error("Invalid response format");
+      }
+    } catch (error) {
+      console.error("[VectorSearch Frontend] Simple search failed:", error);
+      setSearchResults([]);
+      toast({
+        title: "Simple Search Error",
+        description: "Failed to perform simple search",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleDebugCheck = async () => {
+    console.log(`[VectorSearch Frontend] Starting debug check`);
+    setIsSearching(true);
+
+    try {
+      const token =
+        session?.access_token || localStorage.getItem("sb:token") || "";
+
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
+        }/vector-search/debug`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+
+      const responseData = await response.json();
+      console.log(`[VectorSearch Frontend] Debug response:`, responseData);
+
+      if (responseData.success && responseData.data) {
+        const stats = responseData.data.database_stats;
+        toast({
+          title: "Debug Check Complete",
+          description: `DB: ${stats.total_raw_docs} raw docs, ${stats.total_summaries} summaries, ${stats.user_raw_docs} user docs, ${stats.completed_user_docs} completed`,
+        });
+      } else {
+        throw new Error("Invalid debug response format");
+      }
+    } catch (error) {
+      console.error("[VectorSearch Frontend] Debug check failed:", error);
+      toast({
+        title: "Debug Check Error",
+        description: "Failed to perform debug check",
         variant: "destructive",
       });
     } finally {
@@ -203,7 +421,7 @@ export default function VectorSearch() {
     setSelectedStockNames([]);
     setDateFrom("");
     setDateTo("");
-    setMinScore(0.7);
+    setMinScore(0.1);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -307,6 +525,22 @@ export default function VectorSearch() {
                   className="px-8"
                 >
                   {isSearching ? "Searching..." : "Search"}
+                </Button>
+                <Button
+                  onClick={handleSimpleSearch}
+                  disabled={isSearching}
+                  variant="outline"
+                  className="px-4"
+                >
+                  Simple Search
+                </Button>
+                <Button
+                  onClick={handleDebugCheck}
+                  disabled={isSearching}
+                  variant="outline"
+                  className="px-4"
+                >
+                  Debug
                 </Button>
               </div>
 
@@ -541,7 +775,7 @@ export default function VectorSearch() {
             </CardHeader>
             <CardContent>
               <VectorFileUploader
-                onUploadSuccess={(result) => {
+                onUploadSuccess={() => {
                   // Refresh available tags and stats after successful upload
                   loadAvailableTags();
                   loadDocumentStats();

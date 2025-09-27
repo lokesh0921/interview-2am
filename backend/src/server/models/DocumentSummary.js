@@ -19,7 +19,7 @@ const DocumentSummarySchema = new mongoose.Schema(
     },
     semantic_embedding: {
       type: [Number], // Vector array for similarity search
-      index: "2dsphere", // MongoDB vector search index
+      // Note: Vector search index should be created separately via MongoDB Atlas or MongoDB Compass
     },
     reference_date: {
       type: Date,

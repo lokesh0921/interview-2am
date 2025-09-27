@@ -78,6 +78,57 @@ export default function Upload() {
     }
   };
 
+  const handleProcessText = async () => {
+    if (!text.trim()) return;
+
+    setLoading(true);
+    try {
+      const token =
+        session?.access_token || localStorage.getItem("sb:token") || "";
+      const apiBase =
+        (import.meta as any).env?.VITE_API_BASE || "http://localhost:4001/api";
+
+      // Create a text file from the pasted text
+      const textBlob = new Blob([text], { type: "text/plain" });
+      const textFile = new File([textBlob], "pasted-text.txt", {
+        type: "text/plain",
+      });
+
+      const form = new FormData();
+      form.append("file", textFile);
+
+      const res = await fetch(`${apiBase}/vector-search/upload`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: form,
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || "Failed to process text");
+      }
+
+      const result = await res.json();
+      setResults([result.data]);
+
+      toast({
+        title: "Text Processed Successfully",
+        description: "Your text has been processed and is now searchable",
+      });
+    } catch (e: any) {
+      console.error("Text processing error:", e);
+      toast({
+        title: "Processing Failed",
+        description: e.message || "Failed to process text",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 max-w-3xl mx-auto">
       <h1 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">
@@ -134,6 +185,7 @@ export default function Upload() {
 
           {activeTab === "text" && (
             <button
+              onClick={handleProcessText}
               disabled={loading || !text.trim()}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-sm sm:text-base font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >

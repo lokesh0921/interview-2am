@@ -80,18 +80,30 @@ router.post("/search", authMiddleware.required, async (req, res) => {
     const { query, options = {} } = req.body;
     const userId = req.user.sub;
 
+    console.log(`[VectorSearch API] Search request received:`);
+    console.log(`  - User ID: ${userId}`);
+    console.log(`  - Query: "${query}"`);
+    console.log(`  - Options:`, options);
+
     if (!query || query.trim().length === 0) {
+      console.log(`[VectorSearch API] Invalid query: empty or missing`);
       return res.status(400).json({ error: "Search query is required" });
     }
 
+    console.log(`[VectorSearch API] Calling semanticSearch function...`);
     const searchResults = await semanticSearch(query, userId, options);
+    console.log(`[VectorSearch API] Search completed:`, {
+      query: searchResults.query,
+      results_count: searchResults.total_results,
+      has_debug_info: !!searchResults.debug_info,
+    });
 
     res.json({
       success: true,
       data: searchResults,
     });
   } catch (error) {
-    console.error("Search error:", error);
+    console.error(`[VectorSearch API] Search error:`, error);
     res.status(500).json({
       success: false,
       error: error.message || "Search failed",
@@ -266,5 +278,313 @@ router.get("/stats", authMiddleware.required, async (req, res) => {
     });
   }
 });
+
+// Debug endpoint to check database status
+router.get("/debug", authMiddleware.required, async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    console.log(`[VectorSearch API] Debug request for user: ${userId}`);
+
+    // Import the models
+    const { getDocumentSummaryModel } = await import(
+      "../models/DocumentSummary.js"
+    );
+    const { getRawDocumentModel } = await import("../models/RawDocument.js");
+
+    const DocumentSummary = getDocumentSummaryModel();
+    const RawDocument = getRawDocumentModel();
+
+    // Get database stats
+    const totalSummaries = await DocumentSummary.countDocuments();
+    const totalRawDocs = await RawDocument.countDocuments();
+    const userRawDocs = await RawDocument.countDocuments({ userId });
+    const completedUserDocs = await RawDocument.countDocuments({
+      userId,
+      processing_status: "completed",
+    });
+
+    // Get sample documents
+    const sampleRawDocs = await RawDocument.find({ userId })
+      .limit(3)
+      .select("file_id filename processing_status created_at");
+    const sampleSummaries = await DocumentSummary.find()
+      .limit(3)
+      .select("file_id summary_text extracted_tags");
+
+    // Check if user has any completed documents with summaries
+    const userCompletedWithSummaries = await DocumentSummary.aggregate([
+      {
+        $lookup: {
+          from: "raw_documents",
+          localField: "file_id",
+          foreignField: "file_id",
+          as: "raw_doc",
+        },
+      },
+      {
+        $match: {
+          "raw_doc.userId": userId,
+          "raw_doc.processing_status": "completed",
+        },
+      },
+      { $limit: 3 },
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        user_id: userId,
+        database_stats: {
+          total_summaries: totalSummaries,
+          total_raw_docs: totalRawDocs,
+          user_raw_docs: userRawDocs,
+          completed_user_docs: completedUserDocs,
+          user_completed_with_summaries: userCompletedWithSummaries.length,
+        },
+        sample_raw_docs: sampleRawDocs,
+        sample_summaries: sampleSummaries,
+        user_completed_with_summaries: userCompletedWithSummaries,
+      },
+    });
+  } catch (error) {
+    console.error("Debug endpoint error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Debug check failed",
+    });
+  }
+});
+
+// Simple text search (fallback for debugging)
+router.post("/simple-search", authMiddleware.required, async (req, res) => {
+  try {
+    const { query } = req.body;
+    const userId = req.user.sub;
+
+    console.log(
+      `[VectorSearch API] Simple search request: "${query}" for user: ${userId}`
+    );
+
+    if (!query || query.trim().length === 0) {
+      return res.status(400).json({ error: "Search query is required" });
+    }
+
+    // Import the models
+    const { getDocumentSummaryModel } = await import(
+      "../models/DocumentSummary.js"
+    );
+    const { getRawDocumentModel } = await import("../models/RawDocument.js");
+
+    const DocumentSummary = getDocumentSummaryModel();
+    const RawDocument = getRawDocumentModel();
+
+    // Simple text search using MongoDB text search
+    const pipeline = [
+      {
+        $lookup: {
+          from: "raw_documents",
+          localField: "file_id",
+          foreignField: "file_id",
+          as: "raw_doc",
+        },
+      },
+      {
+        $match: {
+          "raw_doc.userId": userId,
+          "raw_doc.processing_status": "completed",
+          $or: [
+            { summary_text: { $regex: query, $options: "i" } },
+            { "extracted_tags.industries": { $regex: query, $options: "i" } },
+            { "extracted_tags.sectors": { $regex: query, $options: "i" } },
+            { "extracted_tags.stock_names": { $regex: query, $options: "i" } },
+            { "extracted_tags.general_tags": { $regex: query, $options: "i" } },
+          ],
+        },
+      },
+      {
+        $limit: 10,
+      },
+      {
+        $project: {
+          file_id: 1,
+          summary_text: 1,
+          extracted_tags: 1,
+          reference_date: 1,
+          "raw_doc.filename": 1,
+          "raw_doc.upload_date": 1,
+          "raw_doc.file_size": 1,
+          "raw_doc.mime_type": 1,
+        },
+      },
+    ];
+
+    const results = await DocumentSummary.aggregate(pipeline);
+
+    console.log(
+      `[VectorSearch API] Simple search found ${results.length} results`
+    );
+
+    res.json({
+      success: true,
+      data: {
+        query,
+        results,
+        total_results: results.length,
+        search_type: "simple_text_search",
+      },
+    });
+  } catch (error) {
+    console.error("Simple search error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Simple search failed",
+    });
+  }
+});
+
+// Get all documents for Summary and Dashboard pages (replaces /files/all)
+router.get("/all-documents", authMiddleware.required, async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const {
+      page = 1,
+      limit = 20,
+      sortBy = "upload_date",
+      sortOrder = "desc",
+    } = req.query;
+
+    console.log(`[VectorSearch] Getting all documents for user: ${userId}`);
+
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sortBy,
+      sortOrder,
+    };
+
+    const result = await getUserDocuments(userId, options);
+
+    console.log(
+      `[VectorSearch] Found ${result.documents.length} documents for user`
+    );
+
+    // Transform the data to match the expected format for Summary/Dashboard pages
+    const transformedItems = result.documents.map((doc) => ({
+      _id: doc.file_id,
+      filename: doc.filename,
+      sourceType: doc.mime_type?.includes("pdf")
+        ? "pdf"
+        : doc.mime_type?.includes("word")
+        ? "docx"
+        : doc.mime_type?.includes("text")
+        ? "txt"
+        : "other",
+      categories: doc.summary?.extracted_tags
+        ? [
+            ...(doc.summary.extracted_tags.industries || []),
+            ...(doc.summary.extracted_tags.sectors || []),
+            ...(doc.summary.extracted_tags.stock_names || []),
+          ]
+        : [],
+      summary: doc.summary?.summary_text || "No summary available",
+      text: doc.raw_content || "No raw content available",
+      metadata: {
+        file_size: doc.file_size,
+        mime_type: doc.mime_type,
+        upload_date: doc.upload_date,
+        processing_status: doc.processing_status,
+      },
+      created_at: doc.upload_date,
+    }));
+
+    res.json({
+      success: true,
+      items: transformedItems,
+      total: result.total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
+  } catch (error) {
+    console.error("Get all documents error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to get documents",
+    });
+  }
+});
+
+// Delete document (replaces /files/:id DELETE)
+router.delete(
+  "/documents/:fileId",
+  authMiddleware.required,
+  async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      const userId = req.user.sub;
+
+      console.log(
+        `[VectorSearch] Deleting document ${fileId} for user: ${userId}`
+      );
+
+      // Import the delete functions from vectorUpload service
+      const { deleteDocument } = await import("../services/vectorUpload.js");
+
+      const result = await deleteDocument(fileId, userId);
+
+      console.log(`[VectorSearch] Document ${fileId} deleted successfully`);
+
+      res.json({
+        success: true,
+        message: "Document deleted successfully",
+        data: result,
+      });
+    } catch (error) {
+      console.error("Delete document error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to delete document",
+      });
+    }
+  }
+);
+
+// Re-summarize document (replaces /files/:id/resummarize)
+router.post(
+  "/documents/:fileId/resummarize",
+  authMiddleware.required,
+  async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      const userId = req.user.sub;
+
+      console.log(
+        `[VectorSearch] Re-summarizing document ${fileId} for user: ${userId}`
+      );
+
+      // Import the resummarize function from vectorUpload service
+      const { resummarizeDocument } = await import(
+        "../services/vectorUpload.js"
+      );
+
+      const result = await resummarizeDocument(fileId, userId);
+
+      console.log(
+        `[VectorSearch] Document ${fileId} re-summarized successfully`
+      );
+
+      res.json({
+        success: true,
+        message: "Document re-summarized successfully",
+        data: result,
+      });
+    } catch (error) {
+      console.error("Re-summarize document error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to re-summarize document",
+      });
+    }
+  }
+);
 
 export default router;

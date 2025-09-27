@@ -12,7 +12,7 @@ import { generateEmbedding } from "./vectorAi.js";
 export async function semanticSearch(query, userId, options = {}) {
   const {
     limit = 10,
-    minScore = 0.7,
+    minScore = 0.1,
     industries = [],
     sectors = [],
     stockNames = [],
@@ -22,12 +22,98 @@ export async function semanticSearch(query, userId, options = {}) {
   } = options;
 
   try {
+    console.log(`[VectorSearch] Starting semantic search for user: ${userId}`);
+    console.log(`[VectorSearch] Query: "${query}"`);
+    console.log(`[VectorSearch] Options:`, options);
+
     // Step 1: Generate embedding for the search query
+    console.log(`[VectorSearch] Generating embedding for query...`);
     const queryEmbedding = await generateEmbedding(query);
+    console.log(
+      `[VectorSearch] Generated embedding with ${queryEmbedding.length} dimensions`
+    );
 
     // Get models
     const DocumentSummary = getDocumentSummaryModel();
     const RawDocument = getRawDocumentModel();
+
+    // Debug: Check total documents for this user
+    console.log(`[VectorSearch] Checking database connection and documents...`);
+
+    // Test database connection and get stats
+    let totalDocs, totalRawDocs, userRawDocs, completedUserDocs;
+    try {
+      totalDocs = await DocumentSummary.countDocuments();
+      totalRawDocs = await RawDocument.countDocuments();
+      userRawDocs = await RawDocument.countDocuments({ userId });
+      completedUserDocs = await RawDocument.countDocuments({
+        userId,
+        processing_status: "completed",
+      });
+
+      console.log(`[VectorSearch] Database connection successful`);
+    } catch (dbError) {
+      console.error(`[VectorSearch] Database connection error:`, dbError);
+      throw new Error(`Database connection failed: ${dbError.message}`);
+    }
+
+    console.log(`[VectorSearch] Database stats:`);
+    console.log(`  - Total DocumentSummary records: ${totalDocs}`);
+    console.log(`  - Total RawDocument records: ${totalRawDocs}`);
+    console.log(`  - User RawDocument records: ${userRawDocs}`);
+    console.log(`  - Completed User RawDocument records: ${completedUserDocs}`);
+
+    const userDocs = await DocumentSummary.aggregate([
+      {
+        $lookup: {
+          from: "raw_documents",
+          localField: "file_id",
+          foreignField: "file_id",
+          as: "raw_doc",
+        },
+      },
+      {
+        $match: {
+          "raw_doc.userId": userId,
+          "raw_doc.processing_status": "completed",
+        },
+      },
+    ]);
+
+    console.log(
+      `[VectorSearch] User documents with completed processing: ${userDocs.length}`
+    );
+
+    if (userDocs.length === 0) {
+      console.log(
+        `[VectorSearch] No completed documents found for user ${userId}`
+      );
+
+      // Let's also check if there are any documents at all (for debugging)
+      const allUserDocs = await RawDocument.find({ userId }).limit(5);
+      console.log(
+        `[VectorSearch] All user documents (first 5):`,
+        allUserDocs.map((doc) => ({
+          file_id: doc.file_id,
+          filename: doc.filename,
+          processing_status: doc.processing_status,
+          created_at: doc.created_at,
+        }))
+      );
+
+      return {
+        query,
+        results: [],
+        total_results: 0,
+        search_options: options,
+        debug_info: {
+          total_docs: totalDocs,
+          user_docs: userDocs.length,
+          user_id: userId,
+          all_user_docs: allUserDocs.length,
+        },
+      };
+    }
 
     // Step 2: Build aggregation pipeline for vector search
     const pipeline = [
@@ -192,13 +278,37 @@ export async function semanticSearch(query, userId, options = {}) {
       },
     ];
 
+    console.log(`[VectorSearch] Executing aggregation pipeline...`);
+    console.log(`[VectorSearch] Pipeline stages:`, pipeline.length);
+
     const results = await DocumentSummary.aggregate(pipeline);
+
+    console.log(`[VectorSearch] Aggregation completed. Results:`, {
+      query,
+      results_count: results.length,
+      total_results: results.length,
+      search_options: options,
+      sample_result:
+        results.length > 0
+          ? {
+              file_id: results[0].file_id,
+              similarity_score: results[0].similarity_score,
+              has_embedding: !!results[0].semantic_embedding,
+            }
+          : null,
+    });
 
     return {
       query,
       results,
       total_results: results.length,
       search_options: options,
+      debug_info: {
+        total_docs: totalDocs,
+        user_docs: userDocs.length,
+        pipeline_stages: pipeline.length,
+        results_count: results.length,
+      },
     };
   } catch (error) {
     console.error("Semantic search error:", error);
