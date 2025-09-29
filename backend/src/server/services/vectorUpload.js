@@ -59,17 +59,54 @@ export async function uploadDocumentForVectorSearch(
 
     // Step 3: Extract text content
     let extractedText = "";
+    let extractionSuccess = false;
+
     try {
       extractedText = await extractTextFromFile(file);
-      rawDocument.raw_content = extractedText;
-      rawDocument.processing_status = "processing";
-      await rawDocument.save();
+      if (
+        extractedText &&
+        extractedText.trim() &&
+        !extractedText.includes(
+          "Document uploaded successfully but text extraction failed"
+        )
+      ) {
+        extractionSuccess = true;
+        rawDocument.raw_content = extractedText;
+        rawDocument.processing_status = "processing";
+        await rawDocument.save();
+        console.log(
+          "Text extraction successful, content length:",
+          extractedText.length
+        );
+      } else {
+        throw new Error("No meaningful text extracted");
+      }
     } catch (extractError) {
       console.error("Text extraction failed:", extractError);
-      rawDocument.processing_status = "failed";
+
+      // Try to extract basic metadata and file info as fallback content
+      const fileInfo = `
+Document Information:
+- Filename: ${file.originalname}
+- File Size: ${file.size} bytes
+- MIME Type: ${file.mimetype}
+- Upload Date: ${new Date().toISOString()}
+
+Note: This document could not be fully processed for text extraction. This may be due to:
+- Scanned PDF format requiring OCR
+- Complex formatting or encryption
+- Corrupted file structure
+
+The document has been uploaded and processed for metadata extraction and AI analysis based on available information.
+      `.trim();
+
+      extractedText = fileInfo;
+      rawDocument.raw_content = extractedText;
+      rawDocument.processing_status = "processing";
       rawDocument.error_message = `Text extraction failed: ${extractError.message}`;
       await rawDocument.save();
-      throw extractError;
+
+      console.log("Using fallback content for processing...");
     }
 
     // Step 4: Process with AI (summarization, tagging, embedding)
@@ -83,6 +120,7 @@ export async function uploadDocumentForVectorSearch(
       const documentSummary = new DocumentSummary({
         file_id: fileId,
         summary_text: aiProcessedData.summary,
+        comprehensive_summary: aiProcessedData.comprehensive_summary,
         extracted_tags: {
           industries: aiProcessedData.industries,
           sectors: aiProcessedData.sectors,
@@ -112,6 +150,7 @@ export async function uploadDocumentForVectorSearch(
         upload_date: rawDocument.upload_date,
         processing_status: "completed",
         summary: aiProcessedData.summary,
+        comprehensive_summary: aiProcessedData.comprehensive_summary,
         extracted_tags: aiProcessedData,
         gridFsId: uploadStream.id,
       };
@@ -127,7 +166,7 @@ export async function uploadDocumentForVectorSearch(
 
     // Clean up GridFS file if it was created
     try {
-      const gridBucket = getGridBucket();
+      const gridBucket = getVectorGridBucket();
       const files = await gridBucket
         .find({ "metadata.fileId": fileId })
         .toArray();
@@ -395,6 +434,8 @@ export async function resummarizeDocument(fileId, userId) {
     if (existingSummary) {
       // Update existing summary
       existingSummary.summary_text = aiProcessedData.summary;
+      existingSummary.comprehensive_summary =
+        aiProcessedData.comprehensive_summary;
       existingSummary.extracted_tags = {
         industries: aiProcessedData.industries,
         sectors: aiProcessedData.sectors,
@@ -415,6 +456,7 @@ export async function resummarizeDocument(fileId, userId) {
       const documentSummary = new DocumentSummary({
         file_id: fileId,
         summary_text: aiProcessedData.summary,
+        comprehensive_summary: aiProcessedData.comprehensive_summary,
         extracted_tags: {
           industries: aiProcessedData.industries,
           sectors: aiProcessedData.sectors,
@@ -442,6 +484,7 @@ export async function resummarizeDocument(fileId, userId) {
       success: true,
       file_id: fileId,
       summary: aiProcessedData.summary,
+      comprehensive_summary: aiProcessedData.comprehensive_summary,
       extracted_tags: aiProcessedData,
       processing_status: "completed",
     };

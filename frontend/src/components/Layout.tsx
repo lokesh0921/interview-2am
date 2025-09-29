@@ -126,7 +126,7 @@ export default function Layout() {
               <span>Upload</span>
             </div>
           </Link>
-          <Link
+          {/* <Link
             to="/dashboard"
             className={`block p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300 ${
               location.pathname === "/dashboard"
@@ -147,7 +147,7 @@ export default function Layout() {
               </svg>
               <span>Dashboard</span>
             </div>
-          </Link>
+          </Link> */}
           <Link
             to="/vector-search"
             className={`block p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300 ${

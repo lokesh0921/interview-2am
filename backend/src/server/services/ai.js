@@ -97,43 +97,47 @@ export async function categorizeText(text) {
   return cats.size ? Array.from(cats) : ["Other"];
 }
 
-// export async function summarizeText(text) {
-//   try {
-//     const response = await fetch(HF_MODEL_URL, {
-//       method: "POST",
-//       headers: {
-//         Authorization: `Bearer ${HF_API_KEY}`,
-//         "Content-Type": "application/json",
-//       },
-//       body: JSON.stringify({
-//         inputs: text,
-//         parameters: {
-//           max_length: 1500, // max summary length
-//           min_length: 400, // min summary length
-//           do_sample: false,
-//         },
-//       }),
-//     });
+// LEGACY FUNCTION - COMMENTED OUT DUE TO UNDEFINED VARIABLES
+// This function had undefined variables (HF_MODEL_URL, HF_API_KEY, text) and was causing errors
+// The working summarizeText function is defined below
+/*
+export async function summarizeText(text) {
+  try {
+    const response = await fetch(HF_MODEL_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${HF_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        inputs: text,
+        parameters: {
+          max_length: 1500, // max summary length
+          min_length: 400, // min summary length
+          do_sample: false,
+        },
+      }),
+    });
 
-//     if (!response.ok) {
-//       throw new Error(
-//         `HF API Error: ${response.status} ${response.statusText}`
-//       );
-//     }
+    if (!response.ok) {
+      throw new Error(
+        `HF API Error: ${response.status} ${response.statusText}`
+      );
+    }
 
-//     const result = await response.json();
-//     return result[0]?.summary_text || "No summary generated";
-//   } catch (err) {
-//     console.error("Summarization failed:", err);
-//     throw err;
-//   }
+    const result = await response.json();
+    return result[0]?.summary_text || "No summary generated";
+  } catch (err) {
+    console.error("Summarization failed:", err);
+    throw err;
+  }
+}
 
-// }
-
-// (async () => {
-//   const summary = await summarizeText(text);
-//   console.log("Summary:\n", summary);
-// })();
+(async () => {
+  const summary = await summarizeText(text);
+  console.log("Summary:\n", summary);
+})();
+*/
 
 export async function summarizeText(text) {
   // Use Hugging Face BART model for summarization

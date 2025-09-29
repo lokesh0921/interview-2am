@@ -62,6 +62,38 @@ export default function VectorSearch() {
   const { session } = useSupabase();
   const { toast } = useToast();
 
+  // Global error handler for any unhandled errors
+  useEffect(() => {
+    const handleError = (error: ErrorEvent) => {
+      console.error("Global error caught:", error);
+      toast({
+        title: "Application Error",
+        description: "An unexpected error occurred. Please refresh the page.",
+        variant: "destructive",
+      });
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error("Unhandled promise rejection:", event);
+      toast({
+        title: "Application Error",
+        description: "An unexpected error occurred. Please refresh the page.",
+        variant: "destructive",
+      });
+    };
+
+    window.addEventListener("error", handleError);
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener("error", handleError);
+      window.removeEventListener(
+        "unhandledrejection",
+        handleUnhandledRejection
+      );
+    };
+  }, [toast]);
+
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -91,8 +123,17 @@ export default function VectorSearch() {
   // Load initial data
   useEffect(() => {
     if (session) {
-      loadAvailableTags();
-      loadDocumentStats();
+      try {
+        loadAvailableTags();
+        loadDocumentStats();
+      } catch (error) {
+        console.error("Error loading initial data:", error);
+        toast({
+          title: "Loading Error",
+          description: "Failed to load initial data. Please refresh the page.",
+          variant: "destructive",
+        });
+      }
     }
   }, [session]);
 
@@ -100,36 +141,55 @@ export default function VectorSearch() {
     try {
       const token =
         session?.access_token || localStorage.getItem("sb:token") || "";
+
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+
       console.log(
         "Loading tags with token:",
         token ? "Token present" : "No token"
       );
       console.log("Session:", session ? "Session present" : "No session");
 
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
-        }/vector-search/tags`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const apiUrl = `${
+        import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
+      }/vector-search/tags`;
+
+      const response = await fetch(apiUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
+
+      if (!data || !data.data) {
+        throw new Error("Invalid response format from server");
+      }
+
       setAvailableTags(data.data);
     } catch (error) {
       console.error("Failed to load tags:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
       toast({
-        title: "Error",
-        description: "Failed to load available tags",
+        title: "Loading Error",
+        description: `Failed to load available tags: ${errorMessage}`,
         variant: "destructive",
+      });
+      // Set empty tags as fallback
+      setAvailableTags({
+        industries: [],
+        sectors: [],
+        stock_names: [],
+        general_tags: [],
       });
     }
   };
@@ -138,52 +198,84 @@ export default function VectorSearch() {
     try {
       const token =
         session?.access_token || localStorage.getItem("sb:token") || "";
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
-        }/vector-search/stats`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+
+      const apiUrl = `${
+        import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
+      }/vector-search/stats`;
+
+      const response = await fetch(apiUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
+
+      if (!data || !data.data) {
+        throw new Error("Invalid response format from server");
+      }
+
       setDocumentStats(data.data);
     } catch (error) {
       console.error("Failed to load stats:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      toast({
+        title: "Loading Error",
+        description: `Failed to load document statistics: ${errorMessage}`,
+        variant: "destructive",
+      });
+      // Set fallback stats
+      setDocumentStats({
+        total_documents: 0,
+        processed_documents: 0,
+        processing_status: {},
+      });
     }
   };
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a search query",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    console.log(
-      `[VectorSearch Frontend] Starting search for: "${searchQuery}"`
-    );
-    setIsSearching(true);
-    setLastSearchQuery(searchQuery);
-
     try {
+      if (!searchQuery.trim()) {
+        toast({
+          title: "Input Error",
+          description: "Please enter a search query",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!session) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in to perform searches",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log(
+        `[VectorSearch Frontend] Starting search for: "${searchQuery}"`
+      );
+      setIsSearching(true);
+      setLastSearchQuery(searchQuery);
+
       const searchOptions = {
         limit: 20,
-        minScore,
-        industries: selectedIndustries,
-        sectors: selectedSectors,
-        stockNames: selectedStockNames,
+        minScore: isNaN(minScore) ? 0.1 : minScore,
+        industries: Array.isArray(selectedIndustries) ? selectedIndustries : [],
+        sectors: Array.isArray(selectedSectors) ? selectedSectors : [],
+        stockNames: Array.isArray(selectedStockNames) ? selectedStockNames : [],
         dateFrom: dateFrom || null,
         dateTo: dateTo || null,
         includeMetadata: true,
@@ -193,6 +285,11 @@ export default function VectorSearch() {
 
       const token =
         session?.access_token || localStorage.getItem("sb:token") || "";
+
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+
       console.log(
         `[VectorSearch Frontend] Using token:`,
         token ? "Token present" : "No token"
@@ -219,10 +316,6 @@ export default function VectorSearch() {
       console.log(
         `[VectorSearch Frontend] Response status: ${response.status}`
       );
-      console.log(
-        `[VectorSearch Frontend] Response headers:`,
-        Object.fromEntries(response.headers.entries())
-      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -230,23 +323,24 @@ export default function VectorSearch() {
           `[VectorSearch Frontend] HTTP Error ${response.status}:`,
           errorText
         );
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        throw new Error(`Server error (${response.status}): ${errorText}`);
       }
 
       const responseData: SearchResponse = await response.json();
       console.log(`[VectorSearch Frontend] Response data:`, responseData);
 
+      if (!responseData || typeof responseData !== "object") {
+        throw new Error("Invalid response format from server");
+      }
+
       if (responseData.success && responseData.data) {
-        const results = responseData.data.results || [];
+        const results = Array.isArray(responseData.data.results)
+          ? responseData.data.results
+          : [];
         console.log(
           `[VectorSearch Frontend] Set ${results.length} search results`
         );
-        if (results.length > 0) {
-          console.log(
-            `[VectorSearch Frontend] Sample result structure:`,
-            results[0]
-          );
-        }
+
         setSearchResults(results);
 
         toast({
@@ -254,23 +348,16 @@ export default function VectorSearch() {
           description: `Found ${responseData.data.total_results || 0} results`,
         });
       } else {
-        console.error(
-          `[VectorSearch Frontend] Invalid response format:`,
-          responseData
-        );
-        setSearchResults([]);
-        toast({
-          title: "Search Error",
-          description: "Invalid response from server",
-          variant: "destructive",
-        });
+        throw new Error("Invalid response from server");
       }
     } catch (error) {
       console.error("[VectorSearch Frontend] Search failed:", error);
       setSearchResults([]); // Ensure searchResults is always an array
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
       toast({
         title: "Search Error",
-        description: "Failed to perform search",
+        description: `Failed to perform search: ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
@@ -279,43 +366,56 @@ export default function VectorSearch() {
   };
 
   const handleSimpleSearch = async () => {
-    if (!searchQuery.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a search query",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    console.log(
-      `[VectorSearch Frontend] Starting simple search for: "${searchQuery}"`
-    );
-    setIsSearching(true);
-    setLastSearchQuery(searchQuery);
-
     try {
+      if (!searchQuery.trim()) {
+        toast({
+          title: "Input Error",
+          description: "Please enter a search query",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!session) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in to perform searches",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log(
+        `[VectorSearch Frontend] Starting simple search for: "${searchQuery}"`
+      );
+      setIsSearching(true);
+      setLastSearchQuery(searchQuery);
+
       const token =
         session?.access_token || localStorage.getItem("sb:token") || "";
 
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
-        }/vector-search/simple-search`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            query: searchQuery,
-          }),
-        }
-      );
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+
+      const apiUrl = `${
+        import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
+      }/vector-search/simple-search`;
+
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: searchQuery,
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        const errorText = await response.text();
+        throw new Error(`Server error (${response.status}): ${errorText}`);
       }
 
       const responseData = await response.json();
@@ -324,17 +424,18 @@ export default function VectorSearch() {
         responseData
       );
 
+      if (!responseData || typeof responseData !== "object") {
+        throw new Error("Invalid response format from server");
+      }
+
       if (responseData.success && responseData.data) {
-        const results = responseData.data.results || [];
+        const results = Array.isArray(responseData.data.results)
+          ? responseData.data.results
+          : [];
         console.log(
           `[VectorSearch Frontend] Simple search found ${results.length} results`
         );
-        if (results.length > 0) {
-          console.log(
-            `[VectorSearch Frontend] Sample simple search result:`,
-            results[0]
-          );
-        }
+
         setSearchResults(results);
         toast({
           title: "Simple Search Complete",
@@ -346,9 +447,11 @@ export default function VectorSearch() {
     } catch (error) {
       console.error("[VectorSearch Frontend] Simple search failed:", error);
       setSearchResults([]);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
       toast({
         title: "Simple Search Error",
-        description: "Failed to perform simple search",
+        description: `Failed to perform simple search: ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
@@ -357,47 +460,74 @@ export default function VectorSearch() {
   };
 
   const handleDebugCheck = async () => {
-    console.log(`[VectorSearch Frontend] Starting debug check`);
-    setIsSearching(true);
-
     try {
+      console.log(`[VectorSearch Frontend] Starting debug check`);
+      setIsSearching(true);
+
+      if (!session) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in to perform debug check",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const token =
         session?.access_token || localStorage.getItem("sb:token") || "";
 
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
-        }/vector-search/debug`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+
+      const apiUrl = `${
+        import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
+      }/vector-search/debug`;
+
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        const errorText = await response.text();
+        throw new Error(`Server error (${response.status}): ${errorText}`);
       }
 
       const responseData = await response.json();
       console.log(`[VectorSearch Frontend] Debug response:`, responseData);
 
+      if (!responseData || typeof responseData !== "object") {
+        throw new Error("Invalid response format from server");
+      }
+
       if (responseData.success && responseData.data) {
         const stats = responseData.data.database_stats;
-        toast({
-          title: "Debug Check Complete (Global Access)",
-          description: `DB: ${stats.total_raw_docs} raw docs, ${stats.total_summaries} summaries, ${stats.completed_docs} completed, ${stats.completed_with_summaries} with summaries`,
-        });
+        if (stats && typeof stats === "object") {
+          toast({
+            title: "Debug Check Complete (Global Access)",
+            description: `DB: ${stats.total_raw_docs || 0} raw docs, ${
+              stats.total_summaries || 0
+            } summaries, ${stats.completed_docs || 0} completed, ${
+              stats.completed_with_summaries || 0
+            } with summaries`,
+          });
+        } else {
+          throw new Error("Invalid database stats format");
+        }
       } else {
-        throw new Error("Invalid debug response format");
+        throw new Error(responseData.error || "Invalid debug response format");
       }
     } catch (error) {
       console.error("[VectorSearch Frontend] Debug check failed:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
       toast({
         title: "Debug Check Error",
-        description: "Failed to perform debug check",
+        description: `Failed to perform debug check: ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
@@ -409,53 +539,101 @@ export default function VectorSearch() {
     tag: string,
     type: "industries" | "sectors" | "stock_names"
   ) => {
-    const setters = {
-      industries: setSelectedIndustries,
-      sectors: setSelectedSectors,
-      stock_names: setSelectedStockNames,
-    };
+    try {
+      if (!tag || typeof tag !== "string") {
+        toast({
+          title: "Input Error",
+          description: "Invalid tag provided",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    const currentValues = {
-      industries: selectedIndustries,
-      sectors: selectedSectors,
-      stock_names: selectedStockNames,
-    };
+      const setters = {
+        industries: setSelectedIndustries,
+        sectors: setSelectedSectors,
+        stock_names: setSelectedStockNames,
+      };
 
-    const setter = setters[type];
-    const current = currentValues[type];
+      const currentValues = {
+        industries: Array.isArray(selectedIndustries) ? selectedIndustries : [],
+        sectors: Array.isArray(selectedSectors) ? selectedSectors : [],
+        stock_names: Array.isArray(selectedStockNames)
+          ? selectedStockNames
+          : [],
+      };
 
-    if (current.includes(tag)) {
-      setter(current.filter((t) => t !== tag));
-    } else {
-      setter([...current, tag]);
+      const setter = setters[type];
+      const current = currentValues[type];
+
+      if (!setter || !Array.isArray(current)) {
+        toast({
+          title: "State Error",
+          description: "Invalid state configuration",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (current.includes(tag)) {
+        setter(current.filter((t) => t !== tag));
+      } else {
+        setter([...current, tag]);
+      }
+    } catch (error) {
+      console.error("Error toggling tag:", error);
+      toast({
+        title: "Tag Toggle Error",
+        description: "Failed to toggle tag selection",
+        variant: "destructive",
+      });
     }
   };
 
   const clearFilters = () => {
-    setSelectedIndustries([]);
-    setSelectedSectors([]);
-    setSelectedStockNames([]);
-    setDateFrom("");
-    setDateTo("");
-    setMinScore(0.1);
+    try {
+      setSelectedIndustries([]);
+      setSelectedSectors([]);
+      setSelectedStockNames([]);
+      setDateFrom("");
+      setDateTo("");
+      setMinScore(0.1);
+
+      toast({
+        title: "Filters Cleared",
+        description: "All search filters have been reset",
+      });
+    } catch (error) {
+      console.error("Error clearing filters:", error);
+      toast({
+        title: "Filter Clear Error",
+        description: "Failed to clear filters",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatFileSize = (bytes: number | null | undefined) => {
-    if (!bytes || isNaN(bytes) || bytes < 0) {
-      console.warn(`[VectorSearch] Invalid file size: ${bytes}`);
+    try {
+      if (!bytes || isNaN(bytes) || bytes < 0) {
+        console.warn(`[VectorSearch] Invalid file size: ${bytes}`);
+        return "Unknown size";
+      }
+      if (bytes === 0) return "0 Bytes";
+      const k = 1024;
+      const sizes = ["Bytes", "KB", "MB", "GB"];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+    } catch (error) {
+      console.error("Error formatting file size:", error);
       return "Unknown size";
     }
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const formatDate = (dateString: string | Date | null | undefined) => {
-    if (!dateString) return "Unknown date";
-
     try {
+      if (!dateString) return "Unknown date";
+
       const date = new Date(dateString);
       if (isNaN(date.getTime())) {
         console.warn(`[VectorSearch] Invalid date: ${dateString}`);
@@ -463,7 +641,7 @@ export default function VectorSearch() {
       }
       return date.toLocaleDateString();
     } catch (error) {
-      console.warn(
+      console.error(
         `[VectorSearch] Date formatting error:`,
         error,
         `Input: ${dateString}`
@@ -791,11 +969,58 @@ export default function VectorSearch() {
                           </div>
 
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline">
-                              View Details
-                            </Button>
-                            <Button size="sm" variant="outline">
-                              Download
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  const summaryText =
+                                    result.summary_text ||
+                                    "No summary available";
+
+                                  if (
+                                    navigator.clipboard &&
+                                    navigator.clipboard.writeText
+                                  ) {
+                                    await navigator.clipboard.writeText(
+                                      summaryText
+                                    );
+                                    toast({
+                                      title: "Summary Copied",
+                                      description:
+                                        "Summary has been copied to clipboard",
+                                    });
+                                  } else {
+                                    // Fallback for older browsers
+                                    const textArea =
+                                      document.createElement("textarea");
+                                    textArea.value = summaryText;
+                                    document.body.appendChild(textArea);
+                                    textArea.select();
+                                    document.execCommand("copy");
+                                    document.body.removeChild(textArea);
+
+                                    toast({
+                                      title: "Summary Copied",
+                                      description:
+                                        "Summary has been copied to clipboard (fallback method)",
+                                    });
+                                  }
+                                } catch (error) {
+                                  console.error(
+                                    "Error copying summary:",
+                                    error
+                                  );
+                                  toast({
+                                    title: "Copy Failed",
+                                    description:
+                                      "Failed to copy summary to clipboard",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                            >
+                              Copy Summary
                             </Button>
                           </div>
                         </CardContent>
@@ -820,17 +1045,48 @@ export default function VectorSearch() {
             <CardContent>
               <VectorFileUploader
                 onUploadSuccess={() => {
-                  // Refresh available tags and stats after successful upload
-                  loadAvailableTags();
-                  loadDocumentStats();
-                  toast({
-                    title: "Upload Complete",
-                    description:
-                      "Document has been processed and is now searchable",
-                  });
+                  try {
+                    // Refresh available tags and stats after successful upload
+                    loadAvailableTags();
+                    loadDocumentStats();
+                    toast({
+                      title: "Upload Complete",
+                      description:
+                        "Document has been processed and is now searchable",
+                    });
+                  } catch (error) {
+                    console.error("Error in upload success callback:", error);
+                    toast({
+                      title: "Upload Complete",
+                      description:
+                        "Document uploaded but failed to refresh data",
+                      variant: "destructive",
+                    });
+                  }
                 }}
                 onUploadError={(error) => {
-                  console.error("Upload failed:", error);
+                  try {
+                    console.error("Upload failed:", error);
+                    const errorMessage =
+                      error && typeof error === "object" && "message" in error
+                        ? (error as Error).message
+                        : "Unknown upload error";
+                    toast({
+                      title: "Upload Failed",
+                      description: `Failed to upload document: ${errorMessage}`,
+                      variant: "destructive",
+                    });
+                  } catch (callbackError) {
+                    console.error(
+                      "Error in upload error callback:",
+                      callbackError
+                    );
+                    toast({
+                      title: "Upload Failed",
+                      description: "Failed to upload document",
+                      variant: "destructive",
+                    });
+                  }
                 }}
               />
             </CardContent>

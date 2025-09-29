@@ -3,8 +3,9 @@ import morgan from "morgan";
 import cors from "cors";
 import { loadConfig } from "./util/config.js";
 import { authMiddleware } from "./middleware/auth.js";
-import uploadRouter from "./routes/upload.js";
-import filesRouter from "./routes/files.js";
+// LEGACY ROUTERS - COMMENTED OUT AS FRONTEND USES VECTOR-SEARCH ENDPOINTS
+// import uploadRouter from "./routes/upload.js";
+// import filesRouter from "./routes/files.js";
 import adminRouter from "./routes/admin.js";
 import authRouter from "./routes/auth.js";
 import textRouter from "./routes/text.js";
@@ -25,8 +26,9 @@ app.get("/health", (req, res) => {
 
 app.use("/api", authMiddleware.optional);
 app.use("/api/auth", authMiddleware.required, authRouter);
-app.use("/api/upload", authMiddleware.required, uploadRouter);
-app.use("/api/files", authMiddleware.required, filesRouter);
+// LEGACY ROUTES - COMMENTED OUT AS FRONTEND USES VECTOR-SEARCH ENDPOINTS
+// app.use("/api/upload", authMiddleware.required, uploadRouter);
+// app.use("/api/files", authMiddleware.required, filesRouter);
 app.use("/api/text", authMiddleware.required, textRouter);
 app.use("/api/vector-search", authMiddleware.required, vectorSearchRouter);
 app.use("/api/admin", authMiddleware.adminOnly, adminRouter);

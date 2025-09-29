@@ -11,6 +11,10 @@ const DocumentSummarySchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    comprehensive_summary: {
+      type: String,
+      required: false,
+    },
     extracted_tags: {
       industries: [{ type: String }],
       sectors: [{ type: String }],

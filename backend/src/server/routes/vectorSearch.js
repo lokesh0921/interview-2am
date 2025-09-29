@@ -171,6 +171,43 @@ router.get(
   }
 );
 
+// Get comprehensive document summary by file_id
+router.get(
+  "/documents/:fileId/comprehensive-summary",
+  authMiddleware.required,
+  async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      const userId = req.user.sub;
+
+      const summary = await getDocumentSummary(fileId, userId);
+
+      if (!summary.comprehensive_summary) {
+        return res.status(404).json({
+          success: false,
+          error: "Comprehensive summary not available for this document",
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          file_id: summary.file_id,
+          comprehensive_summary: summary.comprehensive_summary,
+          summary_date: summary.summary_date,
+          processing_metadata: summary.processing_metadata,
+        },
+      });
+    } catch (error) {
+      console.error("Get comprehensive summary error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to get comprehensive summary",
+      });
+    }
+  }
+);
+
 // Get raw document metadata by file_id
 router.get("/documents/:fileId", authMiddleware.required, async (req, res) => {
   try {
@@ -389,6 +426,7 @@ router.post("/simple-search", authMiddleware.required, async (req, res) => {
           "raw_doc.processing_status": "completed",
           $or: [
             { summary_text: { $regex: query, $options: "i" } },
+            { comprehensive_summary: { $regex: query, $options: "i" } },
             { "extracted_tags.industries": { $regex: query, $options: "i" } },
             { "extracted_tags.sectors": { $regex: query, $options: "i" } },
             { "extracted_tags.stock_names": { $regex: query, $options: "i" } },
@@ -403,6 +441,7 @@ router.post("/simple-search", authMiddleware.required, async (req, res) => {
         $project: {
           file_id: 1,
           summary_text: 1,
+          comprehensive_summary: 1,
           extracted_tags: 1,
           reference_date: 1,
           filename: { $arrayElemAt: ["$raw_doc.filename", 0] },
@@ -422,7 +461,10 @@ router.post("/simple-search", authMiddleware.required, async (req, res) => {
       upload_date: result.upload_date || new Date(),
       file_size: result.file_size || 0,
       mime_type: result.mime_type || "unknown",
-      summary_text: result.summary_text || "No summary available",
+      summary_text:
+        result.comprehensive_summary ||
+        result.summary_text ||
+        "No summary available",
       extracted_tags: result.extracted_tags || {
         industries: [],
         sectors: [],
@@ -509,7 +551,10 @@ router.get("/all-documents", authMiddleware.required, async (req, res) => {
             ...(doc.summary.extracted_tags.stock_names || []),
           ]
         : [],
-      summary: doc.summary?.summary_text || "No summary available",
+      summary:
+        doc.summary?.comprehensive_summary ||
+        doc.summary?.summary_text ||
+        "No summary available",
       text: doc.raw_content || "No raw content available",
       metadata: {
         file_size: doc.file_size,
