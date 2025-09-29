@@ -103,11 +103,11 @@ export default function Summary() {
           {items.map((item) => (
             <div
               key={item._id}
-              className="bg-white rounded-xl shadow-md p-4 overflow-hidden"
+              className="bg-white dark:bg-gray-900 rounded-xl shadow-md p-4 overflow-hidden"
             >
               {/* Card Header */}
-              <div className="flex items-center gap-3 mb-4 pb-3 border-b">
-                <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center bg-gray-100 rounded-lg">
+              <div className="flex items-center gap-3 mb-4 pb-3 border-b dark:border-gray-700">
+                <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
                   {item.sourceType === "pdf" ? (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -156,7 +156,9 @@ export default function Summary() {
                   )}
                 </div>
                 <div>
-                  <h3 className="font-medium text-lg">{item.filename}</h3>
+                  <h3 className="font-medium text-lg text-gray-900 dark:text-gray-100">
+                    {item.filename}
+                  </h3>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {item.categories?.map((category, idx) => (
                       <span
@@ -184,9 +186,11 @@ export default function Summary() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 {/* Raw Data Section */}
                 <div>
-                  <h4 className="font-medium mb-2 text-gray-700">Raw Data</h4>
-                  <div className="bg-gray-100 rounded-lg p-3 h-48 overflow-y-auto">
-                    <pre className="text-xs whitespace-pre-wrap">
+                  <h4 className="font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Raw Data
+                  </h4>
+                  <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 h-48 overflow-y-auto">
+                    <pre className="text-xs whitespace-pre-wrap text-gray-900 dark:text-gray-100">
                       {item.text || "No raw data available"}
                     </pre>
                   </div>
@@ -194,9 +198,11 @@ export default function Summary() {
 
                 {/* Summary Section */}
                 <div>
-                  <h4 className="font-medium mb-2 text-gray-700">Summary</h4>
-                  <div className="bg-gray-100 rounded-lg p-3 h-48 overflow-y-auto">
-                    <p className="text-xs">
+                  <h4 className="font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Summary
+                  </h4>
+                  <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 h-48 overflow-y-auto">
+                    <p className="text-xs text-gray-900 dark:text-gray-100">
                       {item.summary || "No summary available"}
                     </p>
                   </div>
@@ -204,7 +210,7 @@ export default function Summary() {
               </div>
 
               {/* Card Footer - Actions */}
-              <div className="flex flex-wrap gap-2 pt-2 border-t">
+              <div className="flex flex-wrap gap-2 pt-2 border-t dark:border-gray-700">
                 <button
                   onClick={() => copyToClipboard(item.text || "")}
                   className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
