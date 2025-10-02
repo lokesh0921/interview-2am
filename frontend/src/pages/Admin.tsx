@@ -2,9 +2,26 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
 import React from "react";
 
+interface AdminItem {
+  _id: string;
+  userId: string;
+  sourceType: string;
+  filename: string;
+  categories: string[];
+  summary: string;
+}
+
+interface AdminAnalytics {
+  totalUploads: number;
+  categories: Array<{
+    _id: string | null;
+    count: number;
+  }>;
+}
+
 export default function Admin() {
-  const [items, setItems] = useState<any[]>([]);
-  const [analytics, setAnalytics] = useState<any>(null);
+  const [items, setItems] = useState<AdminItem[]>([]);
+  const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [loading, setLoading] = useState(false);
 
   const load = async () => {
@@ -17,7 +34,9 @@ export default function Admin() {
       setItems(files.items);
       setAnalytics(stats);
     } catch (e: any) {
-      alert(e.message);
+      console.error("[Admin] Error loading data:", e);
+      // Use toast instead of alert for better UX
+      // toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -36,7 +55,7 @@ export default function Admin() {
           <div className="mt-2">
             <b>Categories</b>
             <ul className="list-disc ml-6">
-              {analytics.categories.map((c: any) => (
+              {analytics.categories.map((c) => (
                 <li key={c._id || "uncat"}>
                   {c._id || "Uncategorized"}: {c.count}
                 </li>

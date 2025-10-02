@@ -8,6 +8,11 @@ export default function Layout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // For the home page, render without the layout wrapper
+  if (location.pathname === "/") {
+    return <Outlet />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Mobile Menu Button */}
