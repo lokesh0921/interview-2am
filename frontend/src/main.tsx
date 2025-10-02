@@ -18,11 +18,11 @@ import { Toaster } from "@/components/ui/toaster";
 const router = createBrowserRouter([
   {
     path: "/",
-    // element: (
-    //   <Protected>
-    //     <Layout />
-    //   </Protected>
-    // ),
+    element: (
+      <Protected>
+        <Layout />
+      </Protected>
+    ),
     children: [
       { index: true, element: <App /> },
       { path: "upload", element: <Upload /> },

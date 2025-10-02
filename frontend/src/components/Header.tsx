@@ -48,7 +48,7 @@ export default function Header() {
               className={"flex items-center space-x-0"}
               aria-label="Tradonomy"
             >
-              <span className="text-white text-lg sm:text-xl font-extrabold tracking-tight">
+              <span className="text-white dark:text-black text-lg sm:text-xl font-extrabold tracking-tight">
                 Trado
               </span>
               <svg
@@ -78,7 +78,7 @@ export default function Header() {
                   opacity="0.9"
                 />
               </svg>
-              <span className="text-white text-lg sm:text-xl font-extrabold tracking-tight">
+              <span className="text-white dark:text-black text-lg sm:text-xl font-extrabold tracking-tight">
                 omy <span className="text-[#38BDF8] pl-1 sm:pl-2"> Edge</span>
               </span>
             </div>
@@ -156,7 +156,7 @@ export default function Header() {
                 <span className="hidden md:inline text-sm sm:text-base">
                   {session.user.email}
                 </span>
-                <span className="text-xs sm:text-sm md:hidden">
+                <span className="text-xs ml-2 sm:text-sm md:hidden">
                   {session.user.email.split("@")[0]}
                 </span>
               </span>
