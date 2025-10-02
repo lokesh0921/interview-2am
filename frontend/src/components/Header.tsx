@@ -14,16 +14,45 @@ export default function Header() {
       <header className="relative z-10 px-6 py-6">
         <nav className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
+            <div
+              className={"flex items-center space-x-0"}
+              aria-label="Tradonomy"
+            >
+              <span className="text-white text-xl font-extrabold tracking-tight">
+                Trado
+              </span>
               <svg
-                className="w-5 h-5 text-white"
-                fill="currentColor"
-                viewBox="0 0 20 20"
+                width="34"
+                height="28"
+                viewBox="0 0 34 28"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="inline-block"
+                role="img"
+                aria-hidden="true"
               >
-                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <rect width="34" height="28" rx="6" fill="#071122" />
+                <path
+                  d="M6 20 L13 10 L20 18 L27 6"
+                  stroke="#16A34A"
+                  strokeWidth="2.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M6 20 L13 14 L20 22 L27 12"
+                  stroke="#EF4444"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity="0.9"
+                />
               </svg>
+              <span className="text-white text-xl font-extrabold tracking-tight">
+                omy <span className="text-[#38BDF8] pl-2"> Edge</span>
+              </span>
             </div>
-            <span className="text-xl font-bold">Puzzle</span>
+            {/* <span className="text-xl font-bold">Tradonomy Edge</span> */}
           </div>
 
           {/* Centered Navigation Links */}
@@ -124,7 +153,7 @@ export default function Header() {
                   />
                 </svg>
                 <span className="hidden md:inline">{session.user.email}</span>
-                <span className="md:hidden">
+                <span className="text-sm md:hidden">
                   {session.user.email.split("@")[0]}
                 </span>
               </span>
@@ -134,21 +163,9 @@ export default function Header() {
             <ThemeToggle />
 
             <button
-              className="pr-5  px-1 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1"
+              className="px-4 py-2 rounded-lg border border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-red-300 dark:hover:text-red-300 hover:border-red-400/60 dark:hover:border-red-400/40 hover:bg-red-50/50 dark:hover:bg-red-900/10 hover:shadow-lg hover:shadow-red-300/20 dark:hover:shadow-red-500/10 transition-all duration-300 flex items-center gap-2"
               onClick={signOut}
             >
-              <svg
-                className="h-4 w-4"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-              >
-                fill="currentColor"
-                <path
-                  fillRule="evenodd"
-                  d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V7.414l-4-4H3zm7 2a1 1 0 00-1 1v1H5a1 1 0 000 2h4v1a1 1 0 002 0V9.414l3 3V16H5V8h4V7a1 1 0 00-1-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
               <span className="hidden sm:inline">Sign out</span>
             </button>
             {/* <Link

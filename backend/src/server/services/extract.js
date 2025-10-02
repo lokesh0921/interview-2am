@@ -11,82 +11,86 @@ export async function extractFromPdf(buffer) {
 
     console.log("Starting PDF extraction with buffer size:", buffer.length);
 
-    // Method 1: Try pdf-parse with temporary file (most reliable)
-    try {
-      console.log("Trying pdf-parse with temporary file...");
-
-      // Create a temporary file to avoid the test file issue
-      const tempDir = os.tmpdir();
-      const tempFile = path.join(
-        tempDir,
-        `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.pdf`
-      );
-
-      // Write buffer to temp file
-      fs.writeFileSync(tempFile, buffer);
-
-      // Create a mock test file to satisfy pdf-parse's requirement
-      const testDir = path.join(process.cwd(), "test", "data");
-      if (!fs.existsSync(testDir)) {
-        fs.mkdirSync(testDir, { recursive: true });
-      }
-      const testFile = path.join(testDir, "05-versions-space.pdf");
-      if (!fs.existsSync(testFile)) {
-        fs.writeFileSync(testFile, buffer); // Use the actual PDF as the test file
-      }
-
-      // Use pdf-parse with file path instead of buffer
-      const pdfParse = (await import("pdf-parse")).default;
-      const data = await pdfParse(fs.readFileSync(tempFile));
-
-      // Clean up temp file
-      fs.unlinkSync(tempFile);
-
-      if (data && data.text && data.text.trim()) {
-        console.log(
-          "pdf-parse (temp file method) successful, text length:",
-          data.text.length
-        );
-        return data.text;
-      }
-    } catch (pdfParseError) {
-      console.log(
-        "pdf-parse (temp file method) failed:",
-        pdfParseError.message
-      );
-    }
-
-    // Method 2: Try pdf-parse with buffer (original method)
+    // Method 1: Try pdf-parse with buffer (most reliable for text-based PDFs)
     try {
       console.log("Trying pdf-parse with buffer...");
 
-      // Ensure test file exists for pdf-parse
+      // Create test file directory if it doesn't exist
       const testDir = path.join(process.cwd(), "test", "data");
       if (!fs.existsSync(testDir)) {
         fs.mkdirSync(testDir, { recursive: true });
       }
+
+      // Create a test file for pdf-parse initialization
       const testFile = path.join(testDir, "05-versions-space.pdf");
       if (!fs.existsSync(testFile)) {
-        fs.writeFileSync(testFile, buffer); // Use the actual PDF as the test file
+        // Create a minimal PDF test file
+        const minimalPdf = Buffer.from(`%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 4 0 R
+>>
+endobj
+4 0 obj
+<<
+/Length 44
+>>
+stream
+BT
+/F1 12 Tf
+100 700 Td
+(Test) Tj
+ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000206 00000 n 
+trailer
+<<
+/Size 5
+/Root 1 0 R
+>>
+startxref
+299
+%%EOF`);
+        fs.writeFileSync(testFile, minimalPdf);
       }
 
       const pdfParse = (await import("pdf-parse")).default;
       const data = await pdfParse(buffer);
 
       if (data && data.text && data.text.trim()) {
-        console.log(
-          "pdf-parse (buffer method) successful, text length:",
-          data.text.length
-        );
+        console.log("pdf-parse successful, text length:", data.text.length);
         return data.text;
       }
     } catch (pdfParseError) {
-      console.log("pdf-parse (buffer method) failed:", pdfParseError.message);
+      console.log("pdf-parse failed:", pdfParseError.message);
     }
 
-    // Method 3: Try pdfjs-dist with DOM polyfills
+    // Method 2: Try pdfjs-dist (better for complex PDFs)
     try {
-      console.log("Trying pdfjs-dist with DOM polyfills...");
+      console.log("Trying pdfjs-dist...");
 
       // Set up DOM polyfills for pdfjs-dist
       const { JSDOM } = await import("jsdom");
@@ -100,6 +104,9 @@ export async function extractFromPdf(buffer) {
       const loadingTask = pdfjsLib.getDocument({
         data: buffer,
         useSystemFonts: true,
+        disableFontFace: false,
+        disableRange: false,
+        disableStream: false,
       });
 
       const pdf = await loadingTask.promise;
@@ -108,19 +115,72 @@ export async function extractFromPdf(buffer) {
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
         const page = await pdf.getPage(pageNum);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item) => item.str).join(" ");
+        const pageText = textContent.items
+          .map((item) => item.str)
+          .join(" ")
+          .replace(/\s+/g, " ")
+          .trim();
         fullText += pageText + "\n";
       }
 
       if (fullText.trim()) {
-        console.log(
-          "pdfjs-dist (with polyfills) successful, text length:",
-          fullText.length
-        );
+        console.log("pdfjs-dist successful, text length:", fullText.length);
         return fullText.trim();
       }
     } catch (pdfjsError) {
-      console.log("pdfjs-dist (with polyfills) failed:", pdfjsError.message);
+      console.log("pdfjs-dist failed:", pdfjsError.message);
+    }
+
+    // Method 3: Try OCR for scanned PDFs (moved earlier for better performance)
+    try {
+      console.log("Trying OCR for scanned PDF...");
+
+      const pdf2pic = (await import("pdf2pic")).default;
+      const Tesseract = (await import("tesseract.js")).default;
+
+      // Convert PDF to images with optimized settings
+      const convert = pdf2pic.fromBuffer(buffer, {
+        density: 150, // Higher density for better OCR
+        saveFilename: "page",
+        savePath: os.tmpdir(), // Use system temp directory
+        format: "png",
+        width: 2000,
+        height: 2000,
+      });
+
+      const results = await convert.bulk(-1, { responseType: "image" });
+      let fullText = "";
+
+      // OCR each page with better configuration
+      for (const result of results) {
+        try {
+          const { data } = await Tesseract.recognize(result.path, "eng", {
+            logger: (m) => console.log("OCR:", m),
+            tessedit_pageseg_mode: "1", // Automatic page segmentation with OSD
+            tessedit_ocr_engine_mode: "1", // Neural nets LSTM engine only
+          });
+          fullText += data.text + "\n\n";
+
+          // Clean up the image file
+          try {
+            fs.unlinkSync(result.path);
+          } catch (cleanupError) {
+            console.log(
+              "Could not clean up temp image file:",
+              cleanupError.message
+            );
+          }
+        } catch (pageError) {
+          console.log("OCR failed for page:", pageError.message);
+        }
+      }
+
+      if (fullText.trim()) {
+        console.log("OCR successful, text length:", fullText.length);
+        return fullText.trim();
+      }
+    } catch (ocrError) {
+      console.log("OCR failed:", ocrError.message);
     }
 
     // Method 4: Try pdf-lib for validation and basic info
@@ -133,54 +193,7 @@ export async function extractFromPdf(buffer) {
 
       console.log("pdf-lib validation successful, pages:", pages.length);
 
-      // If we can load it with pdf-lib but can't extract text, try OCR as last resort
       if (pages.length > 0) {
-        console.log("PDF is valid but text extraction failed, trying OCR...");
-
-        // Method 5: Try OCR with pdf2pic + Tesseract
-        try {
-          const pdf2pic = (await import("pdf2pic")).default;
-          const Tesseract = (await import("tesseract.js")).default;
-
-          // Convert PDF to images
-          const convert = pdf2pic.fromBuffer(buffer, {
-            density: 100,
-            saveFilename: "page",
-            savePath: "/tmp",
-            format: "png",
-            width: 2000,
-            height: 2000,
-          });
-
-          const results = await convert.bulk(-1); // Convert all pages
-          let fullText = "";
-
-          // OCR each page
-          for (const result of results) {
-            const { data } = await Tesseract.recognize(result.path, "eng");
-            fullText += data.text + "\n";
-
-            // Clean up the image file
-            try {
-              const fs = await import("fs");
-              fs.unlinkSync(result.path);
-            } catch (cleanupError) {
-              console.log(
-                "Could not clean up temp image file:",
-                cleanupError.message
-              );
-            }
-          }
-
-          if (fullText.trim()) {
-            console.log("OCR successful, text length:", fullText.length);
-            return fullText.trim();
-          }
-        } catch (ocrError) {
-          console.log("OCR failed:", ocrError.message);
-        }
-
-        // If OCR also fails, return a more helpful message
         return `[PDF Document - ${pages.length} pages detected. This appears to be a scanned PDF or has complex formatting that prevents text extraction. The document structure is valid and has been processed for metadata extraction.]`;
       }
     } catch (pdfLibError) {
@@ -192,20 +205,6 @@ export async function extractFromPdf(buffer) {
     );
   } catch (error) {
     console.error("PDF extraction error:", error);
-
-    // Handle specific known issues
-    if (error.message && error.message.includes("05-versions-space.pdf")) {
-      throw new Error(
-        "PDF parsing library initialization error - please try uploading the file again"
-      );
-    }
-
-    if (error.message && error.message.includes("ENOENT")) {
-      throw new Error(
-        "PDF parsing library error - please try uploading the file again"
-      );
-    }
-
     throw new Error(`Failed to extract text from PDF: ${error.message}`);
   }
 }
@@ -232,32 +231,68 @@ export async function extractFromImage(buffer) {
  * @returns {Promise<string>} - Extracted text content
  */
 export async function extractTextFromFile(file) {
-  const { buffer, mimetype } = file;
+  const { buffer, mimetype, originalname } = file;
+
+  console.log(
+    `Starting text extraction for file: ${originalname} (${mimetype})`
+  );
 
   try {
+    let extractedText = "";
+
     switch (mimetype) {
       case "application/pdf":
-        return await extractFromPdf(buffer);
+        console.log("Processing PDF file...");
+        extractedText = await extractFromPdf(buffer);
+        break;
 
       case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
       case "application/msword":
-        return await extractFromDocx(buffer);
+        console.log("Processing Word document...");
+        extractedText = await extractFromDocx(buffer);
+        break;
 
       case "text/plain":
-        return await extractFromTxt(buffer);
+        console.log("Processing text file...");
+        extractedText = await extractFromTxt(buffer);
+        break;
 
       case "image/jpeg":
       case "image/png":
       case "image/tiff":
-        return await extractFromImage(buffer);
+        console.log("Processing image file...");
+        extractedText = await extractFromImage(buffer);
+        break;
 
       default:
         throw new Error(`Unsupported file type: ${mimetype}`);
     }
+
+    if (!extractedText || extractedText.trim().length === 0) {
+      throw new Error("No text content extracted from file");
+    }
+
+    console.log(
+      `Text extraction successful for ${originalname}, extracted ${extractedText.length} characters`
+    );
+    return extractedText;
   } catch (error) {
-    console.error(`Text extraction failed for ${mimetype}:`, error);
+    console.error(`Text extraction failed for ${originalname} (${mimetype}):`, {
+      error: error.message,
+      stack: error.stack,
+      fileSize: buffer.length,
+      mimeType: mimetype,
+    });
+
+    // Provide more specific error messages based on file type
+    if (mimetype === "application/pdf") {
+      throw new Error(
+        `PDF text extraction failed for ${originalname}: ${error.message}. This may be due to scanned PDF, encryption, or complex formatting.`
+      );
+    }
+
     throw new Error(
-      `Failed to extract text from ${mimetype}: ${error.message}`
+      `Failed to extract text from ${originalname} (${mimetype}): ${error.message}`
     );
   }
 }

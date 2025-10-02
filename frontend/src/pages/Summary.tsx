@@ -50,7 +50,7 @@ export default function Summary() {
 
       const response: ApiResponse = await apiFetch(
         `/vector-search/all-documents?page=${page}&limit=5`,
-        { headers }
+        { headers: headers as Record<string, string> }
       );
       console.log("[Summary] API response:", response);
 

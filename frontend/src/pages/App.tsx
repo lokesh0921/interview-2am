@@ -23,7 +23,8 @@ export default function App() {
             </h1>
 
             <p className="text-xl text-gray-600 dark:text-white mb-16">
-              Built native to <span className="text-[#38BDF8]">Stripe</span>
+              Turn Raw Data Into{" "}
+              <span className="text-[#38BDF8]">Instant Insights.</span>
             </p>
 
             {/* Feature Cards */}
@@ -32,46 +33,69 @@ export default function App() {
               <div className="bg-white/80 dark:bg-[#010613]/80 backdrop-blur-sm border border-gray-200/50 dark:border-white/20 rounded-2xl p-6  ">
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-4 text-left">
-                    Be tax ready
+                    Be market ready
                   </h3>
                   <div className="bg-gray-100/80 dark:bg-[#010613]/70 rounded-lg p-4 space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-500 dark:text-white text-sm">
-                        Cash
+                        FTSE:
                       </span>
-                      <span className="text-gray-900 dark:text-white">—</span>
+                      <span className="text-[#38BDF8]">41268 (+0.04%)</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-[#38BDF8] text-sm">Accrual ✓</span>
-                      <span className="text-gray-900 dark:text-white">
-                        Cash
+                      <span className="text-gray-500 dark:text-white text-sm">
+                        CAC:
                       </span>
+                      <span className="text-[#38BDF8]">7588 (+0.31%) </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500 dark:text-white text-sm">
+                        DAX:
+                      </span>
+                      <span className="text-[#38BDF8]">18765 (+0.37%)</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-white mt-3 text-left">
-                    Cash & accrual together at last
-                  </p>
                 </div>
               </div>
 
               {/* Fundraise Ready Card */}
               <div className="bg-white/80 dark:bg-[#010613]/80 backdrop-blur-sm border border-gray-200/50 dark:border-white/20 rounded-2xl p-6 hover:bg-white/90 dark:hover:bg-[#010613]/90 transition-all duration-300 shadow-lg dark:shadow-none">
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-4 text-left">
-                    Be fundraise ready
+                <div className="mb-2">
+                  <h3 className="text-lg font-semibold mb-2 text-left">
+                    Get market insights
                   </h3>
                   <div className="bg-gray-100/80 dark:bg-[#010613]/70 rounded-lg p-4">
-                    <div className="text-xs text-gray-500 dark:text-white mb-2 text-left">
-                      Revenue Recognition &gt;
-                    </div>
-                    <div className="flex items-end space-x-1 h-16">
-                      {[20, 35, 45, 60, 75, 85, 95].map((height, i) => (
-                        <div
-                          key={i}
-                          className="bg-gradient-to-t from-blue-500 to-cyan-400 rounded-sm flex-1"
-                          style={{ height: `${height}%` }}
-                        ></div>
-                      ))}
+                    <div className="bg-[#0D1117] rounded-xl p-4 flex flex-col items-center justify-center">
+                      <h3 className="text-white text-sm mb-2">Market Trend</h3>
+                      <div className="w-full h-20">
+                        <svg
+                          viewBox="0 0 100 100"
+                          preserveAspectRatio="none"
+                          className="w-full h-full"
+                        >
+                          <polyline
+                            fill="none"
+                            stroke="url(#lineGradient)"
+                            strokeWidth="2"
+                            points="0,70 15,60 30,75 45,50 60,55 75,30 90,40 100,20"
+                          />
+                          <defs>
+                            <linearGradient
+                              id="lineGradient"
+                              x1="0"
+                              y1="0"
+                              x2="1"
+                              y2="0"
+                            >
+                              <stop offset="0%" stopColor="#BE1417" />
+                              <stop offset="100%" stopColor="#0CA054" />
+                            </linearGradient>
+                          </defs>
+                        </svg>
+                      </div>
+                      <p className="text-gray-400 text-xs mt-2">
+                        Nifty 50 • +0.48%
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -81,7 +105,7 @@ export default function App() {
               <div className="bg-white/80 dark:bg-[#010613]/80 backdrop-blur-sm border border-gray-200/50 dark:border-white/20 rounded-2xl p-6 hover:bg-white/90 dark:hover:bg-[#010613]/90 transition-all duration-300 shadow-lg dark:shadow-none">
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-4 text-left">
-                    Get accurate books, faster
+                    Get instant data, faster
                   </h3>
                   <div className="space-y-4">
                     <div className="flex items-center space-x-3">
@@ -93,11 +117,9 @@ export default function App() {
                       </div>
                       <div className="text-left">
                         <div className="text-sm font-medium">
-                          98% of dollar volume
+                          Nifty ⬆️ 81 points (+0.33%)
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-white">
-                          auto-categorized
-                        </div>
+                        <div className="text-xs text-gray-500 dark:text-white"></div>
                       </div>
                     </div>
 
@@ -110,52 +132,12 @@ export default function App() {
                       </div>
                       <div className="text-left">
                         <div className="text-sm font-medium">
-                          90% of dollar volume
+                          Sensex had dropped 3.30% over the past eight days.
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-white">
-                          finalized
-                        </div>
+                        <div className="text-xs text-gray-500 dark:text-white"></div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Section */}
-            <div className="mt-20 bg-white/60 dark:bg-[#010613]/80 backdrop-blur-sm border border-gray-200/50 dark:border-white/20 rounded-2xl p-8 shadow-lg dark:shadow-none">
-              <h3 className="text-xl font-semibold mb-6">
-                Build a better business
-              </h3>
-              <div className="bg-gray-100/80 dark:bg-[#010613]/70 rounded-lg p-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div className="text-right">
-                    <div className="text-gray-500 dark:text-white">$16,328</div>
-                    <div className="text-[#38BDF8]">$500</div>
-                    <div className="text-[#38BDF8]">$350</div>
-                    <div className="text-gray-500 dark:text-white">$150</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-gray-500 dark:text-white">$18,069</div>
-                    <div className="text-[#38BDF8]">$217</div>
-                    <div className="text-gray-500 dark:text-white">$0</div>
-                    <div className="text-gray-500 dark:text-white">$0</div>
-                  </div>
-                  <div className="hidden md:block text-right">
-                    <div className="text-gray-500 dark:text-white">—</div>
-                    <div className="text-gray-500 dark:text-white">—</div>
-                    <div className="text-gray-500 dark:text-white">—</div>
-                    <div className="text-gray-500 dark:text-white">—</div>
-                  </div>
-                  <div className="hidden md:block text-right">
-                    <div className="text-gray-500 dark:text-white">—</div>
-                    <div className="text-gray-500 dark:text-white">—</div>
-                    <div className="text-gray-500 dark:text-white">—</div>
-                    <div className="text-gray-500 dark:text-white">—</div>
-                  </div>
-                </div>
-                <div className="text-xs text-gray-500 dark:text-white mt-4 text-left">
-                  Spotlight tool highlights changes
                 </div>
               </div>
             </div>
