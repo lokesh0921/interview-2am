@@ -3,6 +3,7 @@ import { useSupabase } from "../supabase/SupabaseProvider";
 import FileUploader from "../components/FileUploader";
 import FilePreview from "../components/FilePreview";
 import { useToast } from "../hooks/use-toast";
+import Header from "@/components/Header";
 
 export default function Upload() {
   const { session } = useSupabase();
@@ -130,226 +131,231 @@ export default function Upload() {
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-3xl mx-auto">
-      <h1 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">
-        Upload & Process
-      </h1>
+    <div className="min-h-screen bg-gray-50 dark:bg-[#010613] text-gray-900 dark:text-white">
+      <Header />
+      <div className="p-4 sm:p-6 max-w-3xl mx-auto">
+        <h1 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">
+          Upload & Process
+        </h1>
 
-      <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-6 sm:mb-8">
-        <div className="flex space-x-2 sm:space-x-4 mb-4 sm:mb-6">
-          <button
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-sm sm:text-base font-medium transition-colors ${
-              activeTab === "files"
-                ? "bg-blue-100 text-blue-700"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-            onClick={() => setActiveTab("files")}
-          >
-            Upload Files
-          </button>
-          <button
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-sm sm:text-base font-medium transition-colors ${
-              activeTab === "text"
-                ? "bg-blue-100 text-blue-700"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-            onClick={() => setActiveTab("text")}
-          >
-            Paste Text
-          </button>
-        </div>
-
-        <div className="space-y-4 sm:space-y-6">
-          {activeTab === "files" ? (
-            <div className="space-y-3 sm:space-y-4">
-              {!showPreview ? (
-                <FileUploader onFilesSelected={handleFilesSelected} />
-              ) : files ? (
-                <FilePreview
-                  files={files}
-                  onConfirm={handlePreviewConfirm}
-                  onCancel={handlePreviewCancel}
-                  onSelectNewFiles={handleSelectNewFiles}
-                  loading={loading}
-                />
-              ) : null}
-            </div>
-          ) : (
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Paste text here for processing..."
-              className="w-full h-40 sm:h-60 border rounded-xl p-3 sm:p-4 text-sm sm:text-base text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-            />
-          )}
-
-          {activeTab === "text" && (
+        <div className="bg-white dark:bg-[#0A1329] rounded-xl shadow-md p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="flex space-x-2 sm:space-x-4 mb-4 sm:mb-6">
             <button
-              onClick={handleProcessText}
-              disabled={loading || !text.trim()}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-sm sm:text-base font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-sm sm:text-base font-medium dark:bg-[#010613] ${
+                activeTab === "files"
+                  ? "bg-blue-100 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+              onClick={() => setActiveTab("files")}
             >
-              {loading ? (
-                <>
-                  <svg
-                    className="animate-spin -ml-1 mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Processing...
-                </>
-              ) : (
-                "Process Text"
-              )}
+              Upload Files
             </button>
-          )}
-        </div>
-      </div>
+            <button
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-sm sm:text-base font-medium dark:bg-[#010613] ${
+                activeTab === "text"
+                  ? "bg-blue-100 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+              onClick={() => setActiveTab("text")}
+            >
+              Paste Text
+            </button>
+          </div>
 
-      {results.length > 0 && (
-        <div className="mt-6 sm:mt-8">
-          <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">
-            Results
-          </h2>
-          <div className="space-y-3 sm:space-y-4">
-            {results.map((r, i) => (
-              <div
-                key={i}
-                className="border rounded-xl shadow-md p-3 sm:p-5 bg-white overflow-hidden"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2 sm:gap-0">
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                      />
-                    </svg>
-                    <span className="font-medium text-sm sm:text-base">
-                      {r.filename}
-                    </span>
-                    <span className="text-xs sm:text-sm text-gray-500">
-                      {r.sourceType}
-                    </span>
-                  </div>
-                  <button
-                    className="text-xs sm:text-sm px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors flex items-center gap-1 self-start sm:self-auto"
-                    onClick={() => {
-                      navigator.clipboard.writeText(r.summary);
-                      alert("Summary copied to clipboard!");
-                    }}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-3 w-3 sm:h-4 sm:w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                      />
-                    </svg>
-                    Copy Summary
-                  </button>
-                </div>
-
-                <div className="mb-2 sm:mb-3">
-                  <div className="text-xs sm:text-sm font-medium mb-1">
-                    Categories:
-                  </div>
-                  <div className="flex flex-wrap gap-1 sm:gap-2">
-                    {Array.isArray(r.categories)
-                      ? r.categories.map((category: string, idx: number) => (
-                          <span
-                            key={idx}
-                            className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium ${
-                              category === "Auto"
-                                ? "bg-red-100 text-red-800"
-                                : category === "IT"
-                                ? "bg-blue-100 text-blue-800"
-                                : category === "Pharma"
-                                ? "bg-green-100 text-green-800"
-                                : category === "Economics"
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-purple-100 text-purple-800"
-                            }`}
-                          >
-                            {category}
-                          </span>
-                        ))
-                      : null}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4 text-xs sm:text-sm">
-                  {r.location && (
-                    <div>
-                      <div className="font-medium text-gray-700">Location</div>
-                      <div>{r.location}</div>
-                    </div>
-                  )}
-                  {r.positionType && (
-                    <div>
-                      <div className="font-medium text-gray-700">
-                        Position Type
-                      </div>
-                      <div>{r.positionType}</div>
-                    </div>
-                  )}
-                  {r.company && (
-                    <div>
-                      <div className="font-medium text-gray-700">Company</div>
-                      <div>{r.company}</div>
-                    </div>
-                  )}
-                  {r.date && (
-                    <div>
-                      <div className="font-medium text-gray-700">Date</div>
-                      <div>{r.date}</div>
-                    </div>
-                  )}
-                </div>
-
-                <details className="text-xs sm:text-sm">
-                  <summary className="cursor-pointer font-medium text-blue-600 hover:text-blue-800 transition-colors">
-                    View Summary
-                  </summary>
-                  <div className="mt-2 p-2 sm:p-3 bg-gray-50 rounded-lg whitespace-pre-wrap">
-                    {r.summary}
-                  </div>
-                </details>
+          <div className="space-y-4 sm:space-y-6">
+            {activeTab === "files" ? (
+              <div className="space-y-3 sm:space-y-4">
+                {!showPreview ? (
+                  <FileUploader onFilesSelected={handleFilesSelected} />
+                ) : files ? (
+                  <FilePreview
+                    files={files}
+                    onConfirm={handlePreviewConfirm}
+                    onCancel={handlePreviewCancel}
+                    onSelectNewFiles={handleSelectNewFiles}
+                    loading={loading}
+                  />
+                ) : null}
               </div>
-            ))}
+            ) : (
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Paste text here for processing..."
+                className="w-full h-40 dark:bg-[#010613] sm:h-60 border rounded-xl p-3 sm:p-4 text-sm sm:text-base text-gray-700 dark:text-white focus:ring-2 focus:ring-blue-900 focus:border-blue-900 outline-none transition-all"
+              />
+            )}
+
+            {activeTab === "text" && (
+              <button
+                onClick={handleProcessText}
+                disabled={loading || !text.trim()}
+                className="w-full bg-blue-900 hover:bg-blue-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-sm sm:text-base font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {loading ? (
+                  <>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-white "
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Processing...
+                  </>
+                ) : (
+                  "Process Text"
+                )}
+              </button>
+            )}
           </div>
         </div>
-      )}
+
+        {results.length > 0 && (
+          <div className="mt-6 sm:mt-8">
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">
+              Results
+            </h2>
+            <div className="space-y-3 sm:space-y-4">
+              {results.map((r, i) => (
+                <div
+                  key={i}
+                  className="border rounded-xl shadow-md p-3 sm:p-5 bg-white overflow-hidden"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2 sm:gap-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                        />
+                      </svg>
+                      <span className="font-medium text-sm sm:text-base">
+                        {r.filename}
+                      </span>
+                      <span className="text-xs sm:text-sm text-gray-500">
+                        {r.sourceType}
+                      </span>
+                    </div>
+                    <button
+                      className="text-xs sm:text-sm px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors flex items-center gap-1 self-start sm:self-auto"
+                      onClick={() => {
+                        navigator.clipboard.writeText(r.summary);
+                        alert("Summary copied to clipboard!");
+                      }}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-3 w-3 sm:h-4 sm:w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                        />
+                      </svg>
+                      Copy Summary
+                    </button>
+                  </div>
+
+                  <div className="mb-2 sm:mb-3">
+                    <div className="text-xs sm:text-sm font-medium mb-1">
+                      Categories:
+                    </div>
+                    <div className="flex flex-wrap gap-1 sm:gap-2">
+                      {Array.isArray(r.categories)
+                        ? r.categories.map((category: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium ${
+                                category === "Auto"
+                                  ? "bg-red-100 text-red-800"
+                                  : category === "IT"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : category === "Pharma"
+                                  ? "bg-green-100 text-green-800"
+                                  : category === "Economics"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-purple-100 text-purple-800"
+                              }`}
+                            >
+                              {category}
+                            </span>
+                          ))
+                        : null}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4 text-xs sm:text-sm">
+                    {r.location && (
+                      <div>
+                        <div className="font-medium text-gray-700">
+                          Location
+                        </div>
+                        <div>{r.location}</div>
+                      </div>
+                    )}
+                    {r.positionType && (
+                      <div>
+                        <div className="font-medium text-gray-700">
+                          Position Type
+                        </div>
+                        <div>{r.positionType}</div>
+                      </div>
+                    )}
+                    {r.company && (
+                      <div>
+                        <div className="font-medium text-gray-700">Company</div>
+                        <div>{r.company}</div>
+                      </div>
+                    )}
+                    {r.date && (
+                      <div>
+                        <div className="font-medium text-gray-700">Date</div>
+                        <div>{r.date}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <details className="text-xs sm:text-sm">
+                    <summary className="cursor-pointer font-medium text-blue-600 hover:text-blue-800 transition-colors">
+                      View Summary
+                    </summary>
+                    <div className="mt-2 p-2 sm:p-3 bg-gray-50 rounded-lg whitespace-pre-wrap">
+                      {r.summary}
+                    </div>
+                  </details>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

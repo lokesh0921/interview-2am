@@ -511,7 +511,7 @@ router.get("/all-documents", authMiddleware.required, async (req, res) => {
     const userId = req.user.sub;
     const {
       page = 1,
-      limit = 20,
+      limit = 5,
       sortBy = "upload_date",
       sortOrder = "desc",
     } = req.query;
@@ -551,11 +551,12 @@ router.get("/all-documents", authMiddleware.required, async (req, res) => {
             ...(doc.summary.extracted_tags.stock_names || []),
           ]
         : [],
-      summary:
+      summary: (
         doc.summary?.comprehensive_summary ||
         doc.summary?.summary_text ||
-        "No summary available",
-      text: doc.raw_content || "No raw content available",
+        "No summary available"
+      ).substring(0, 2000),
+      text: (doc.raw_content || "No raw content available").substring(0, 3000),
       metadata: {
         file_size: doc.file_size,
         mime_type: doc.mime_type,
@@ -571,6 +572,8 @@ router.get("/all-documents", authMiddleware.required, async (req, res) => {
       total: result.total,
       page: parseInt(page),
       limit: parseInt(limit),
+      hasMore: result.documents.length === parseInt(limit),
+      totalPages: Math.ceil(result.total / parseInt(limit)),
     });
   } catch (error) {
     console.error("Get all documents error:", error);

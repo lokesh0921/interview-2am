@@ -14,12 +14,12 @@ export default function Layout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#010613]">
       {/* Mobile Menu Button */}
       <div className="lg:hidden fixed top-0 left-0 z-30 m-4">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-lg bg-white dark:bg-gray-800 shadow-md flex items-center justify-center"
+          className="p-2 rounded-lg bg-white dark:bg-[#010613] shadow-md flex items-center justify-center"
         >
           {sidebarOpen ? (
             <svg
@@ -57,7 +57,7 @@ export default function Layout() {
 
       {/* Sidebar Navigation - Desktop */}
       <aside
-        className={`bg-white dark:bg-gray-800 shadow-md fixed h-full z-20 transition-all duration-300 ease-in-out
+        className={`bg-white dark:bg-[#010613] shadow-md fixed h-full z-20 transition-all duration-300 ease-in-out
             ${sidebarOpen ? "left-0" : "-left-64 lg:left-0"} w-64 top-0`}
       >
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
@@ -87,9 +87,9 @@ export default function Layout() {
         <nav className="p-4 space-y-2">
           <Link
             to="/"
-            className={`block p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300 ${
+            className={`block p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-white ${
               location.pathname === "/"
-                ? "bg-gray-100 dark:bg-gray-700 font-medium"
+                ? "bg-[#38BDF8]/20 border border-[#38BDF8]/50 text-[#38BDF8] font-medium"
                 : ""
             }`}
             onClick={() => setSidebarOpen(false)}
@@ -108,9 +108,9 @@ export default function Layout() {
           </Link>
           <Link
             to="/upload"
-            className={`block p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300 ${
+            className={`block p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-white ${
               location.pathname === "/upload"
-                ? "bg-gray-100 dark:bg-gray-700 font-medium"
+                ? "bg-[#38BDF8]/20 border border-[#38BDF8]/50 text-[#38BDF8] font-medium"
                 : ""
             }`}
             onClick={() => setSidebarOpen(false)}
@@ -155,9 +155,9 @@ export default function Layout() {
           </Link> */}
           <Link
             to="/vector-search"
-            className={`block p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300 ${
+            className={`block p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-white ${
               location.pathname === "/vector-search"
-                ? "bg-gray-100 dark:bg-gray-700 font-medium"
+                ? "bg-[#38BDF8]/20 border border-[#38BDF8]/50 text-[#38BDF8] font-medium"
                 : ""
             }`}
             onClick={() => setSidebarOpen(false)}
@@ -180,9 +180,9 @@ export default function Layout() {
           </Link>
           <Link
             to="/summary"
-            className={`block p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300 ${
+            className={`block p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-white ${
               location.pathname === "/summary"
-                ? "bg-gray-100 dark:bg-gray-700 font-medium"
+                ? "bg-[#38BDF8]/20 border border-[#38BDF8]/50 text-[#38BDF8] font-medium"
                 : ""
             }`}
             onClick={() => setSidebarOpen(false)}
@@ -217,8 +217,8 @@ export default function Layout() {
       {/* Main Content */}
       <div className="lg:ml-64 transition-all duration-300">
         {/* Sticky Top Bar */}
-        <header className="sticky top-0 p-4 flex items-center gap-4 bg-white dark:bg-gray-800 shadow-md z-10">
-          <div className="ml-auto flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
+        <header className="sticky top-0 p-4 flex items-center gap-4 bg-white dark:bg-[#010613] shadow-md z-10">
+          <div className="ml-auto flex items-center gap-3 text-sm text-gray-600 dark:text-white">
             {session?.user?.email && (
               <span className="hidden sm:flex items-center gap-2">
                 <svg
@@ -266,7 +266,7 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="p-4 sm:p-6 max-w-6xl mx-auto">
+        <main className="p-4 sm:p-6 max-w-6xl mx-auto text-gray-900 dark:text-white">
           <Outlet />
         </main>
       </div>

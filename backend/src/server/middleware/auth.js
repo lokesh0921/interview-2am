@@ -53,6 +53,17 @@ function withAdminRole(user) {
 async function parseAuth(req) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+
+  // Development bypass for testing
+  if (config.NODE_ENV === "development" && token === "dev-test-token") {
+    console.log("Development bypass: Using test user");
+    return {
+      sub: "dev-test-user",
+      email: "test@example.com",
+      app_metadata: { role: "admin" },
+    };
+  }
+
   if (!token) {
     console.log("No token found in request");
     return null;

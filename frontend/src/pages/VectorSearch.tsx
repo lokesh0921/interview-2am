@@ -17,6 +17,7 @@ import {
 } from "../components/ui/tabs";
 import { useToast } from "../hooks/use-toast";
 import VectorFileUploader from "../components/VectorFileUploader";
+import Header from "@/components/Header";
 
 interface SearchResult {
   file_id: string;
@@ -653,446 +654,455 @@ export default function VectorSearch() {
   // console.log("upload_date raw value:", searchResults[0].raw_doc.upload_date);
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Vector Search</h1>
-        <p className="text-muted-foreground">
-          Semantic search across all documents with AI-powered summarization and
-          tagging (Global Access)
-        </p>
+    <div className="min-h-screen bg-gray-50 dark:bg-[#010613] text-gray-900 dark:text-white">
+      <Header />
+      <div className="container mx-auto p-6 max-w-7xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Vector Search</h1>
+          <p className="text-gray-600 dark:text-white">
+            Semantic search across all documents with AI-powered summarization
+            and tagging (Global Access)
+          </p>
 
-        {documentStats && (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total Documents
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {documentStats.total_documents}
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Processed</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {documentStats.processed_documents}
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Processing Rate
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {documentStats.total_documents > 0
-                    ? Math.round(
-                        (documentStats.processed_documents /
-                          documentStats.total_documents) *
-                          100
-                      )
-                    : 0}
-                  %
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      </div>
-
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value as "search" | "upload")}
-      >
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="search">Search Documents</TabsTrigger>
-          <TabsTrigger value="upload">Upload New Document</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="search" className="space-y-6">
-          {/* Search Interface */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Semantic Search</CardTitle>
-              <CardDescription>
-                Search all documents using natural language queries (Global
-                Access)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter your search query..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={handleSearch}
-                  disabled={isSearching}
-                  className="px-8"
-                >
-                  {isSearching ? "Searching..." : "Search"}
-                </Button>
-                <Button
-                  onClick={handleSimpleSearch}
-                  disabled={isSearching}
-                  variant="outline"
-                  className="px-4"
-                >
-                  Simple Search
-                </Button>
-                <Button
-                  onClick={handleDebugCheck}
-                  disabled={isSearching}
-                  variant="outline"
-                  className="px-4"
-                >
-                  Debug
-                </Button>
-              </div>
-
-              {/* Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Min Similarity Score
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={minScore}
-                    onChange={(e) => setMinScore(parseFloat(e.target.value))}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Date From
-                  </label>
-                  <Input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Date To
-                  </label>
-                  <Input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                  />
-                </div>
-                <div className="flex items-end">
-                  <Button
-                    variant="outline"
-                    onClick={clearFilters}
-                    className="w-full"
-                  >
-                    Clear Filters
-                  </Button>
-                </div>
-              </div>
-
-              {/* Tag Filters */}
-              <div className="space-y-4">
-                {availableTags.industries.length > 0 && (
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Industries
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {availableTags.industries.map((industry) => (
-                        <Button
-                          key={industry}
-                          variant={
-                            selectedIndustries.includes(industry)
-                              ? "default"
-                              : "outline"
-                          }
-                          size="sm"
-                          onClick={() =>
-                            handleTagToggle(industry, "industries")
-                          }
-                        >
-                          {industry}
-                        </Button>
-                      ))}
-                    </div>
+          {documentStats && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 ">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Total Documents
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {documentStats.total_documents}
                   </div>
-                )}
-
-                {availableTags.sectors.length > 0 && (
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Sectors
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {availableTags.sectors.map((sector) => (
-                        <Button
-                          key={sector}
-                          variant={
-                            selectedSectors.includes(sector)
-                              ? "default"
-                              : "outline"
-                          }
-                          size="sm"
-                          onClick={() => handleTagToggle(sector, "sectors")}
-                        >
-                          {sector}
-                        </Button>
-                      ))}
-                    </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Processed
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {documentStats.processed_documents}
                   </div>
-                )}
-
-                {availableTags.stock_names.length > 0 && (
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Companies
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {availableTags.stock_names.map((stock) => (
-                        <Button
-                          key={stock}
-                          variant={
-                            selectedStockNames.includes(stock)
-                              ? "default"
-                              : "outline"
-                          }
-                          size="sm"
-                          onClick={() => handleTagToggle(stock, "stock_names")}
-                        >
-                          {stock}
-                        </Button>
-                      ))}
-                    </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Processing Rate
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {documentStats.total_documents > 0
+                      ? Math.round(
+                          (documentStats.processed_documents /
+                            documentStats.total_documents) *
+                            100
+                        )
+                      : 0}
+                    %
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
 
-          {/* Search Results */}
-          {lastSearchQuery && (
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as "search" | "upload")}
+        >
+          {/* <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="search">Search Documents</TabsTrigger>
+            <TabsTrigger value="upload">Upload New Document</TabsTrigger>
+          </TabsList> */}
+
+          <TabsContent value="search" className="space-y-6">
+            {/* Search Interface */}
             <Card>
               <CardHeader>
-                <CardTitle>Search Results</CardTitle>
+                <CardTitle>Semantic Search</CardTitle>
                 <CardDescription>
-                  Results for: "{lastSearchQuery}" ({searchResults?.length || 0}{" "}
-                  found)
+                  Search all documents using natural language queries (Global
+                  Access)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter your search query..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleSearch}
+                    disabled={isSearching}
+                    className="px-8"
+                  >
+                    {isSearching ? "Searching..." : "Search"}
+                  </Button>
+                  <Button
+                    onClick={handleSimpleSearch}
+                    disabled={isSearching}
+                    variant="outline"
+                    className="px-4"
+                  >
+                    Simple Search
+                  </Button>
+                  <Button
+                    onClick={handleDebugCheck}
+                    disabled={isSearching}
+                    variant="outline"
+                    className="px-4"
+                  >
+                    Debug
+                  </Button>
+                </div>
+
+                {/* Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Min Similarity Score
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={minScore}
+                      onChange={(e) => setMinScore(parseFloat(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Date From
+                    </label>
+                    <Input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Date To
+                    </label>
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button
+                      variant="outline"
+                      onClick={clearFilters}
+                      className="w-full"
+                    >
+                      Clear Filters
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Tag Filters */}
+                <div className="space-y-4">
+                  {availableTags.industries.length > 0 && (
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Industries
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {availableTags.industries.map((industry) => (
+                          <Button
+                            key={industry}
+                            variant={
+                              selectedIndustries.includes(industry)
+                                ? "default"
+                                : "outline"
+                            }
+                            size="sm"
+                            onClick={() =>
+                              handleTagToggle(industry, "industries")
+                            }
+                          >
+                            {industry}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {availableTags.sectors.length > 0 && (
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Sectors
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {availableTags.sectors.map((sector) => (
+                          <Button
+                            key={sector}
+                            variant={
+                              selectedSectors.includes(sector)
+                                ? "default"
+                                : "outline"
+                            }
+                            size="sm"
+                            onClick={() => handleTagToggle(sector, "sectors")}
+                          >
+                            {sector}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {availableTags.stock_names.length > 0 && (
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Companies
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {availableTags.stock_names.map((stock) => (
+                          <Button
+                            key={stock}
+                            variant={
+                              selectedStockNames.includes(stock)
+                                ? "default"
+                                : "outline"
+                            }
+                            size="sm"
+                            onClick={() =>
+                              handleTagToggle(stock, "stock_names")
+                            }
+                          >
+                            {stock}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Search Results */}
+            {lastSearchQuery && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Search Results</CardTitle>
+                  <CardDescription>
+                    Results for: "{lastSearchQuery}" (
+                    {searchResults?.length || 0} found)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {!searchResults || searchResults.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      No results found. Try adjusting your search query or
+                      filters.
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {searchResults.map((result) => (
+                        <Card
+                          key={result.file_id}
+                          className="border-l-4 border-l-blue-500"
+                        >
+                          <CardHeader className="pb-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle className="text-lg">
+                                  {result.filename || "Unknown filename"}
+                                </CardTitle>
+                                <CardDescription>
+                                  {formatFileSize(result.file_size)} • Uploaded{" "}
+                                  {formatDate(result.upload_date)}
+                                  {result.reference_date &&
+                                    ` • Reference: ${formatDate(
+                                      result.reference_date
+                                    )}`}
+                                </CardDescription>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-medium">
+                                  {result.similarity_score &&
+                                  !isNaN(result.similarity_score)
+                                    ? `${(
+                                        result.similarity_score * 100
+                                      ).toFixed(1)}% match`
+                                    : "No score"}
+                                </div>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm mb-3">
+                              {result.summary_text || "No summary available"}
+                            </p>
+
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {result.extracted_tags?.industries?.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              {result.extracted_tags?.sectors?.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              {result.extracted_tags?.stock_names?.map(
+                                (tag) => (
+                                  <span
+                                    key={tag}
+                                    className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded"
+                                  >
+                                    {tag}
+                                  </span>
+                                )
+                              )}
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={async () => {
+                                  try {
+                                    const summaryText =
+                                      result.summary_text ||
+                                      "No summary available";
+
+                                    if (
+                                      navigator.clipboard &&
+                                      navigator.clipboard.writeText
+                                    ) {
+                                      await navigator.clipboard.writeText(
+                                        summaryText
+                                      );
+                                      toast({
+                                        title: "Summary Copied",
+                                        description:
+                                          "Summary has been copied to clipboard",
+                                      });
+                                    } else {
+                                      // Fallback for older browsers
+                                      const textArea =
+                                        document.createElement("textarea");
+                                      textArea.value = summaryText;
+                                      document.body.appendChild(textArea);
+                                      textArea.select();
+                                      document.execCommand("copy");
+                                      document.body.removeChild(textArea);
+
+                                      toast({
+                                        title: "Summary Copied",
+                                        description:
+                                          "Summary has been copied to clipboard (fallback method)",
+                                      });
+                                    }
+                                  } catch (error) {
+                                    console.error(
+                                      "Error copying summary:",
+                                      error
+                                    );
+                                    toast({
+                                      title: "Copy Failed",
+                                      description:
+                                        "Failed to copy summary to clipboard",
+                                      variant: "destructive",
+                                    });
+                                  }
+                                }}
+                              >
+                                Copy Summary
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="upload">
+            <Card>
+              <CardHeader>
+                <CardTitle>Upload Document for Vector Search</CardTitle>
+                <CardDescription>
+                  Upload a new document to be processed with AI summarization
+                  and vector search (Available to all users)
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {!searchResults || searchResults.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">
-                    No results found. Try adjusting your search query or
-                    filters.
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {searchResults.map((result) => (
-                      <Card
-                        key={result.file_id}
-                        className="border-l-4 border-l-blue-500"
-                      >
-                        <CardHeader className="pb-3">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle className="text-lg">
-                                {result.filename || "Unknown filename"}
-                              </CardTitle>
-                              <CardDescription>
-                                {formatFileSize(result.file_size)} • Uploaded{" "}
-                                {formatDate(result.upload_date)}
-                                {result.reference_date &&
-                                  ` • Reference: ${formatDate(
-                                    result.reference_date
-                                  )}`}
-                              </CardDescription>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm font-medium">
-                                {result.similarity_score &&
-                                !isNaN(result.similarity_score)
-                                  ? `${(result.similarity_score * 100).toFixed(
-                                      1
-                                    )}% match`
-                                  : "No score"}
-                              </div>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm mb-3">
-                            {result.summary_text || "No summary available"}
-                          </p>
-
-                          <div className="flex flex-wrap gap-2 mb-3">
-                            {result.extracted_tags?.industries?.map((tag) => (
-                              <span
-                                key={tag}
-                                className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                            {result.extracted_tags?.sectors?.map((tag) => (
-                              <span
-                                key={tag}
-                                className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                            {result.extracted_tags?.stock_names?.map((tag) => (
-                              <span
-                                key={tag}
-                                className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={async () => {
-                                try {
-                                  const summaryText =
-                                    result.summary_text ||
-                                    "No summary available";
-
-                                  if (
-                                    navigator.clipboard &&
-                                    navigator.clipboard.writeText
-                                  ) {
-                                    await navigator.clipboard.writeText(
-                                      summaryText
-                                    );
-                                    toast({
-                                      title: "Summary Copied",
-                                      description:
-                                        "Summary has been copied to clipboard",
-                                    });
-                                  } else {
-                                    // Fallback for older browsers
-                                    const textArea =
-                                      document.createElement("textarea");
-                                    textArea.value = summaryText;
-                                    document.body.appendChild(textArea);
-                                    textArea.select();
-                                    document.execCommand("copy");
-                                    document.body.removeChild(textArea);
-
-                                    toast({
-                                      title: "Summary Copied",
-                                      description:
-                                        "Summary has been copied to clipboard (fallback method)",
-                                    });
-                                  }
-                                } catch (error) {
-                                  console.error(
-                                    "Error copying summary:",
-                                    error
-                                  );
-                                  toast({
-                                    title: "Copy Failed",
-                                    description:
-                                      "Failed to copy summary to clipboard",
-                                    variant: "destructive",
-                                  });
-                                }
-                              }}
-                            >
-                              Copy Summary
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
+                <VectorFileUploader
+                  onUploadSuccess={() => {
+                    try {
+                      // Refresh available tags and stats after successful upload
+                      loadAvailableTags();
+                      loadDocumentStats();
+                      toast({
+                        title: "Upload Complete",
+                        description:
+                          "Document has been processed and is now searchable",
+                      });
+                    } catch (error) {
+                      console.error("Error in upload success callback:", error);
+                      toast({
+                        title: "Upload Complete",
+                        description:
+                          "Document uploaded but failed to refresh data",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                  onUploadError={(error) => {
+                    try {
+                      console.error("Upload failed:", error);
+                      const errorMessage =
+                        error && typeof error === "object" && "message" in error
+                          ? (error as Error).message
+                          : "Unknown upload error";
+                      toast({
+                        title: "Upload Failed",
+                        description: `Failed to upload document: ${errorMessage}`,
+                        variant: "destructive",
+                      });
+                    } catch (callbackError) {
+                      console.error(
+                        "Error in upload error callback:",
+                        callbackError
+                      );
+                      toast({
+                        title: "Upload Failed",
+                        description: "Failed to upload document",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                />
               </CardContent>
             </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="upload">
-          <Card>
-            <CardHeader>
-              <CardTitle>Upload Document for Vector Search</CardTitle>
-              <CardDescription>
-                Upload a new document to be processed with AI summarization and
-                vector search (Available to all users)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <VectorFileUploader
-                onUploadSuccess={() => {
-                  try {
-                    // Refresh available tags and stats after successful upload
-                    loadAvailableTags();
-                    loadDocumentStats();
-                    toast({
-                      title: "Upload Complete",
-                      description:
-                        "Document has been processed and is now searchable",
-                    });
-                  } catch (error) {
-                    console.error("Error in upload success callback:", error);
-                    toast({
-                      title: "Upload Complete",
-                      description:
-                        "Document uploaded but failed to refresh data",
-                      variant: "destructive",
-                    });
-                  }
-                }}
-                onUploadError={(error) => {
-                  try {
-                    console.error("Upload failed:", error);
-                    const errorMessage =
-                      error && typeof error === "object" && "message" in error
-                        ? (error as Error).message
-                        : "Unknown upload error";
-                    toast({
-                      title: "Upload Failed",
-                      description: `Failed to upload document: ${errorMessage}`,
-                      variant: "destructive",
-                    });
-                  } catch (callbackError) {
-                    console.error(
-                      "Error in upload error callback:",
-                      callbackError
-                    );
-                    toast({
-                      title: "Upload Failed",
-                      description: "Failed to upload document",
-                      variant: "destructive",
-                    });
-                  }
-                }}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }
