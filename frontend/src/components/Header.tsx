@@ -11,23 +11,53 @@ export default function Header() {
   return (
     <>
       {/* Header */}
-      <header className="relative z-10 px-6 py-6">
+      <header className="relative z-10 px-4 sm:px-6 py-4 sm:py-6">
         <nav className="flex items-center justify-between max-w-7xl mx-auto">
+          {/* Mobile Menu Button - Top Left */}
+          <button
+            className="md:hidden p-2 rounded-lg border border-gray-300/40 dark:border-white/20 hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5 transition-all duration-300"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              {mobileMenuOpen ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              ) : (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              )}
+            </svg>
+          </button>
+
+          {/* Logo */}
           <div className="flex items-center space-x-2">
             <div
               className={"flex items-center space-x-0"}
               aria-label="Tradonomy"
             >
-              <span className="text-white text-xl font-extrabold tracking-tight">
+              <span className="text-white text-lg sm:text-xl font-extrabold tracking-tight">
                 Trado
               </span>
               <svg
-                width="34"
-                height="28"
+                width="28"
+                height="24"
                 viewBox="0 0 34 28"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
-                className="inline-block"
+                className="inline-block sm:w-8 sm:h-7"
                 role="img"
                 aria-hidden="true"
               >
@@ -48,14 +78,13 @@ export default function Header() {
                   opacity="0.9"
                 />
               </svg>
-              <span className="text-white text-xl font-extrabold tracking-tight">
-                omy <span className="text-[#38BDF8] pl-2"> Edge</span>
+              <span className="text-white text-lg sm:text-xl font-extrabold tracking-tight">
+                omy <span className="text-[#38BDF8] pl-1 sm:pl-2"> Edge</span>
               </span>
             </div>
-            {/* <span className="text-xl font-bold">Tradonomy Edge</span> */}
           </div>
 
-          {/* Centered Navigation Links */}
+          {/* Centered Navigation Links - Desktop Only */}
           <div className="hidden md:flex items-center justify-center space-x-2 absolute left-1/2 transform -translate-x-1/2">
             <Link
               to="/"
@@ -102,36 +131,8 @@ export default function Header() {
             </Link>
           </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden p-2 rounded-lg border border-gray-300/40 dark:border-white/20 hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5 transition-all duration-300"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              {mobileMenuOpen ? (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              ) : (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              )}
-            </svg>
-          </button>
-
-          <div className="flex items-center space-x-4">
+          {/* Right Side - User Info, Theme Toggle, Sign Out */}
+          <div className="flex items-center space-x-2 sm:space-x-4">
             {/* <Link
            to="/login"
            className="px-4 py-2 text-emerald-400 border border-emerald-400/50 rounded-lg hover:bg-emerald-400/10 transition-colors"
@@ -142,7 +143,7 @@ export default function Header() {
               <span className="hidden sm:flex items-center gap-2">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
+                  className="h-4 w-4 sm:h-5 sm:w-5"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -152,8 +153,10 @@ export default function Header() {
                     clipRule="evenodd"
                   />
                 </svg>
-                <span className="hidden md:inline">{session.user.email}</span>
-                <span className="text-sm md:hidden">
+                <span className="hidden md:inline text-sm sm:text-base">
+                  {session.user.email}
+                </span>
+                <span className="text-xs sm:text-sm md:hidden">
                   {session.user.email.split("@")[0]}
                 </span>
               </span>
@@ -162,11 +165,26 @@ export default function Header() {
             {/* Theme Toggle */}
             <ThemeToggle />
 
+            {/* Sign Out Button */}
             <button
-              className="px-4 py-2 rounded-lg border border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-red-300 dark:hover:text-red-300 hover:border-red-400/60 dark:hover:border-red-400/40 hover:bg-red-50/50 dark:hover:bg-red-900/10 hover:shadow-lg hover:shadow-red-300/20 dark:hover:shadow-red-500/10 transition-all duration-300 flex items-center gap-2"
+              className="px-2 sm:px-4 py-2 rounded-lg border border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-red-300 dark:hover:text-red-300 hover:border-red-400/60 dark:hover:border-red-400/40 hover:bg-red-50/50 dark:hover:bg-red-900/10 hover:shadow-lg hover:shadow-red-300/20 dark:hover:shadow-red-500/10 transition-all duration-300 flex items-center gap-1 sm:gap-2"
               onClick={signOut}
             >
-              <span className="hidden sm:inline">Sign out</span>
+              <svg
+                className="h-4 w-4 sm:h-5 sm:w-5"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V7.414l-4-4H3zm7 2a1 1 0 00-1 1v1H5a1 1 0 000 2h4v1a1 1 0 002 0V9.414l3 3V16H5V8h4V7a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span className="hidden sm:inline text-sm sm:text-base">
+                Sign out
+              </span>
             </button>
             {/* <Link
            to="/upload"
@@ -181,10 +199,10 @@ export default function Header() {
       {/* Mobile Navigation Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden relative z-20 bg-white/95 dark:bg-[#010613]/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-white/10">
-          <div className="px-6 py-4 space-y-2">
+          <div className="px-4 sm:px-6 py-4 space-y-2">
             <Link
               to="/"
-              className={`block px-4 py-3 rounded-lg border transition-all duration-300 ${
+              className={`block px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-300 text-sm sm:text-base ${
                 location.pathname === "/"
                   ? "bg-[#38BDF8]/20 border-[#38BDF8]/50 text-[#38BDF8] shadow-lg shadow-[#38BDF8]/20"
                   : "border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-gray-900 dark:hover:text-white hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5"
@@ -195,7 +213,7 @@ export default function Header() {
             </Link>
             <Link
               to="/upload"
-              className={`block px-4 py-3 rounded-lg border transition-all duration-300 ${
+              className={`block px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-300 text-sm sm:text-base ${
                 location.pathname === "/upload"
                   ? "bg-[#38BDF8]/20 border-[#38BDF8]/50 text-[#38BDF8] shadow-lg shadow-[#38BDF8]/20"
                   : "border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-gray-900 dark:hover:text-white hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5"
@@ -206,7 +224,7 @@ export default function Header() {
             </Link>
             <Link
               to="/vector-search"
-              className={`block px-4 py-3 rounded-lg border transition-all duration-300 ${
+              className={`block px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-300 text-sm sm:text-base ${
                 location.pathname === "/vector-search"
                   ? "bg-[#38BDF8]/20 border-[#38BDF8]/50 text-[#38BDF8] shadow-lg shadow-[#38BDF8]/20"
                   : "border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-gray-900 dark:hover:text-white hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5"
@@ -217,7 +235,7 @@ export default function Header() {
             </Link>
             <Link
               to="/summary"
-              className={`block px-4 py-3 rounded-lg border transition-all duration-300 ${
+              className={`block px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-300 text-sm sm:text-base ${
                 location.pathname === "/summary"
                   ? "bg-[#38BDF8]/20 border-[#38BDF8]/50 text-[#38BDF8] shadow-lg shadow-[#38BDF8]/20"
                   : "border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-gray-900 dark:hover:text-white hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5"

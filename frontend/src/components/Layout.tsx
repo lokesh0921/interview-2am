@@ -16,7 +16,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#010613]">
       {/* Mobile Menu Button */}
-      <div className="lg:hidden fixed top-0 left-0 z-30 m-4">
+      <div className="lg:hidden fixed top-0 left-0 z-30 m-2 sm:m-4">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="p-2 rounded-lg bg-white dark:bg-[#010613] shadow-md flex items-center justify-center"
@@ -60,8 +60,8 @@ export default function Layout() {
         className={`bg-white dark:bg-[#010613] shadow-md fixed h-full z-20 transition-all duration-300 ease-in-out
             ${sidebarOpen ? "left-0" : "-left-64 lg:left-0"} w-64 top-0`}
       >
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+        <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
             AI Ingest
           </h1>
           <button
@@ -84,20 +84,20 @@ export default function Layout() {
             </svg>
           </button>
         </div>
-        <nav className="p-4 space-y-2">
+        <nav className="p-3 sm:p-4 space-y-2">
           <Link
             to="/"
-            className={`block p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-white ${
+            className={`block p-2.5 sm:p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-white text-sm sm:text-base ${
               location.pathname === "/"
                 ? "bg-[#38BDF8]/20 border border-[#38BDF8]/50 text-[#38BDF8] font-medium"
                 : ""
             }`}
             onClick={() => setSidebarOpen(false)}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
+                className="h-4 w-4 sm:h-5 sm:w-5"
                 viewBox="0 0 20 20"
                 fill="currentColor"
               >
@@ -108,7 +108,7 @@ export default function Layout() {
           </Link>
           <Link
             to="/upload"
-            className={`block p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-white ${
+            className={`block p-2.5 sm:p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-white text-sm sm:text-base ${
               location.pathname === "/upload"
                 ? "bg-[#38BDF8]/20 border border-[#38BDF8]/50 text-[#38BDF8] font-medium"
                 : ""
