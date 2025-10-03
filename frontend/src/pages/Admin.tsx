@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
+import Header from "@/components/Header";
 
 interface AdminItem {
   _id: string;
@@ -46,36 +47,41 @@ export default function Admin() {
   }, []);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <h1 className="text-xl font-semibold mb-4">Admin Dashboard</h1>
-      {analytics && (
-        <div className="mb-6 bg-white p-4 rounded border">
-          <div>Total Uploads: {analytics.totalUploads}</div>
-          <div className="mt-2">
-            <b>Categories</b>
-            <ul className="list-disc ml-6">
-              {analytics.categories.map((c) => (
-                <li key={c._id || "uncat"}>
-                  {c._id || "Uncategorized"}: {c.count}
-                </li>
-              ))}
-            </ul>
+    <div>
+      <Header />
+      <div className="p-6 max-w-6xl mx-auto">
+        <h1 className="text-xl font-semibold mb-4">Admin Dashboard</h1>
+        {analytics && (
+          <div className="mb-6 bg-white p-4 rounded border">
+            <div>Total Uploads: {analytics.totalUploads}</div>
+            <div className="mt-2">
+              <b>Categories</b>
+              <ul className="list-disc ml-6">
+                {analytics.categories.map((c) => (
+                  <li key={c._id || "uncat"}>
+                    {c._id || "Uncategorized"}: {c.count}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
+        )}
+        {loading && <div>Loading...</div>}
+        <div className="grid gap-4">
+          {items.map((it) => (
+            <div key={it._id} className="bg-white p-4 rounded border">
+              <div className="text-sm text-gray-500">
+                {it.userId} • {it.sourceType} • {it.filename}
+              </div>
+              <div className="mt-2 text-sm">
+                <b>Categories:</b> {(it.categories || []).join(", ")}
+              </div>
+              <div className="mt-2 whitespace-pre-wrap text-sm">
+                {it.summary}
+              </div>
+            </div>
+          ))}
         </div>
-      )}
-      {loading && <div>Loading...</div>}
-      <div className="grid gap-4">
-        {items.map((it) => (
-          <div key={it._id} className="bg-white p-4 rounded border">
-            <div className="text-sm text-gray-500">
-              {it.userId} • {it.sourceType} • {it.filename}
-            </div>
-            <div className="mt-2 text-sm">
-              <b>Categories:</b> {(it.categories || []).join(", ")}
-            </div>
-            <div className="mt-2 whitespace-pre-wrap text-sm">{it.summary}</div>
-          </div>
-        ))}
       </div>
     </div>
   );

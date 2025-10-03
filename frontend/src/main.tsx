@@ -11,7 +11,6 @@ import Summary from "./pages/Summary";
 import VectorSearch from "./pages/VectorSearch";
 import { SupabaseProvider } from "./supabase/SupabaseProvider";
 import Protected from "./supabase/Protected";
-import Layout from "./components/Layout";
 import { Toaster } from "@/components/ui/toaster";
 // import Auth from "./pages/Auth";
 
@@ -20,24 +19,49 @@ const router = createBrowserRouter([
     path: "/",
     element: (
       <Protected>
-        <Layout />
+        <App />
       </Protected>
     ),
-    children: [
-      { index: true, element: <App /> },
-      { path: "upload", element: <Upload /> },
-      { path: "vector-search", element: <VectorSearch /> },
-      { path: "dashboard", element: <Dashboard /> },
-      { path: "summary", element: <Summary /> },
-      {
-        path: "admin",
-        element: (
-          <Protected admin>
-            <Admin />
-          </Protected>
-        ),
-      },
-    ],
+  },
+  {
+    path: "/upload",
+    element: (
+      <Protected>
+        <Upload />
+      </Protected>
+    ),
+  },
+  {
+    path: "/vector-search",
+    element: (
+      <Protected>
+        <VectorSearch />
+      </Protected>
+    ),
+  },
+  {
+    path: "/dashboard",
+    element: (
+      <Protected>
+        <Dashboard />
+      </Protected>
+    ),
+  },
+  {
+    path: "/summary",
+    element: (
+      <Protected>
+        <Summary />
+      </Protected>
+    ),
+  },
+  {
+    path: "/admin",
+    element: (
+      <Protected admin>
+        <Admin />
+      </Protected>
+    ),
   },
   { path: "/login", element: <Login /> },
 ]);
