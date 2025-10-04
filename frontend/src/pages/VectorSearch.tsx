@@ -9,12 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "../components/ui/tabs";
+import { Tabs, TabsContent } from "../components/ui/tabs";
 import { useToast } from "../hooks/use-toast";
 import VectorFileUploader from "../components/VectorFileUploader";
 import Header from "@/components/Header";
@@ -767,7 +762,7 @@ export default function VectorSearch() {
                 </div>
 
                 {/* Filters */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <label className="text-sm font-medium mb-2 block">
                       Min Similarity Score
@@ -781,9 +776,23 @@ export default function VectorSearch() {
                       onChange={(e) => setMinScore(parseFloat(e.target.value))}
                     />
                   </div>
+                  {/* <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Date Range (Calendar)
+                    </label>
+                    <DatePicker
+                      startDate={dateFrom}
+                      endDate={dateTo}
+                      onDateChange={(start, end) => {
+                        setDateFrom(start);
+                        setDateTo(end);
+                      }}
+                      placeholder="Select date range"
+                    />
+                  </div> */}
                   <div>
                     <label className="text-sm font-medium mb-2 block">
-                      Date From
+                      From Date
                     </label>
                     <Input
                       type="date"
@@ -793,7 +802,7 @@ export default function VectorSearch() {
                   </div>
                   <div>
                     <label className="text-sm font-medium mb-2 block">
-                      Date To
+                      To Date
                     </label>
                     <Input
                       type="date"
@@ -801,15 +810,17 @@ export default function VectorSearch() {
                       onChange={(e) => setDateTo(e.target.value)}
                     />
                   </div>
-                  <div className="flex items-end">
-                    <Button
-                      variant="outline"
-                      onClick={clearFilters}
-                      className="w-full"
-                    >
-                      Clear Filters
-                    </Button>
-                  </div>
+                </div>
+
+                {/* Clear Filters Button */}
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={clearFilters}
+                    className="w-auto"
+                  >
+                    Clear All Filters
+                  </Button>
                 </div>
 
                 {/* Tag Filters */}
