@@ -177,7 +177,7 @@ export default function Dashboard() {
   return (
     <div>
       <Header />
-      <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+      <div className="p-4 sm:p-6 max-w-6xl mx-auto pt-24 sm:pt-28">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 space-y-3 sm:space-y-0">
           <div>
             <h1 className="text-xl sm:text-2xl font-semibold">Dashboard</h1>

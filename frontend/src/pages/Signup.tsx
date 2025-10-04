@@ -1,9 +1,9 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import LoginForm from "../components/auth/LoginForm";
+import SignupForm from "../components/auth/SignupForm";
 import ThemeToggle from "../components/ThemeToggle";
 
-export default function Login() {
+export default function Signup() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#010613] flex flex-col">
       {/* Header */}
@@ -56,7 +56,7 @@ export default function Login() {
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
-          <LoginForm />
+          <SignupForm />
         </div>
       </main>
 

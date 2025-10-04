@@ -49,7 +49,7 @@ export default function Admin() {
   return (
     <div>
       <Header />
-      <div className="p-6 max-w-6xl mx-auto">
+      <div className="p-6 max-w-6xl mx-auto pt-24 sm:pt-28">
         <h1 className="text-xl font-semibold mb-4">Admin Dashboard</h1>
         {analytics && (
           <div className="mb-6 bg-white p-4 rounded border">

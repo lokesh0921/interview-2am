@@ -133,7 +133,7 @@ export default function Upload() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#010613] text-gray-900 dark:text-white">
       <Header />
-      <div className="p-4 sm:p-6 max-w-3xl mx-auto">
+      <div className="p-4 sm:p-6 max-w-3xl mx-auto pt-24 sm:pt-28">
         <h1 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">
           Upload & Process
         </h1>

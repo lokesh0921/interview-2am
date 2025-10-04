@@ -11,7 +11,7 @@ export default function Header() {
   return (
     <>
       {/* Header */}
-      <header className="relative z-10 px-4 sm:px-6 py-4 sm:py-6">
+      <header className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-6 py-4 sm:py-6 bg-white/95 dark:bg-[#010613]/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-white/10">
         <nav className="flex items-center justify-between max-w-7xl mx-auto">
           {/* Mobile Menu Button - Top Left */}
           <button
@@ -133,65 +133,76 @@ export default function Header() {
 
           {/* Right Side - User Info, Theme Toggle, Sign Out */}
           <div className="flex items-center space-x-2 sm:space-x-4">
-            {/* <Link
-           to="/login"
-           className="px-4 py-2 text-emerald-400 border border-emerald-400/50 rounded-lg hover:bg-emerald-400/10 transition-colors"
-         >
-           Log in
-         </Link> */}
-            {session?.user?.email && (
-              <span className="hidden sm:flex items-center gap-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 sm:h-5 sm:w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
+            {session?.user?.email ? (
+              <>
+                <span className="hidden sm:flex items-center gap-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 sm:h-5 sm:w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span className="hidden md:inline text-sm sm:text-base">
+                    {session.user.email}
+                  </span>
+                  <span className="text-xs sm:text-sm md:hidden">
+                    {session.user.email.split("@")[0]}
+                  </span>
+                </span>
+
+                {/* Theme Toggle */}
+                <ThemeToggle />
+
+                {/* Sign Out Button */}
+                <button
+                  className="px-2 sm:px-4 py-2 rounded-lg border border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-red-300 dark:hover:text-red-300 hover:border-red-400/60 dark:hover:border-red-400/40 hover:bg-red-50/50 dark:hover:bg-red-900/10 hover:shadow-lg hover:shadow-red-300/20 dark:hover:shadow-red-500/10 transition-all duration-300 flex items-center gap-1 sm:gap-2"
+                  onClick={signOut}
                 >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span className="hidden md:inline text-sm sm:text-base">
-                  {session.user.email}
-                </span>
-                <span className="text-xs sm:text-sm md:hidden">
-                  {session.user.email.split("@")[0]}
-                </span>
-              </span>
+                  <svg
+                    className="h-4 w-4 sm:h-5 sm:w-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V7.414l-4-4H3zm7 2a1 1 0 00-1 1v1H5a1 1 0 000 2h4v1a1 1 0 002 0V9.414l3 3V16H5V8h4V7a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span className="hidden sm:inline text-sm sm:text-base">
+                    Sign out
+                  </span>
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Login Button */}
+                <Link
+                  to="/login"
+                  className="px-3 sm:px-4 py-2 rounded-lg border border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-gray-900 dark:hover:text-white hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5 hover:shadow-lg hover:shadow-gray-300/20 dark:hover:shadow-white/10 transition-all duration-300 text-sm sm:text-base"
+                >
+                  Sign in
+                </Link>
+
+                {/* Signup Button */}
+                <Link
+                  to="/signup"
+                  className="px-3 sm:px-4 py-2 rounded-lg bg-[#38BDF8] text-white hover:bg-[#38BDF8]/90 transition-all duration-300 shadow-lg shadow-[#38BDF8]/20 hover:shadow-[#38BDF8]/30 text-sm sm:text-base font-medium"
+                >
+                  Get started
+                </Link>
+
+                {/* Theme Toggle */}
+                <ThemeToggle />
+              </>
             )}
-
-            {/* Theme Toggle */}
-            <ThemeToggle />
-
-            {/* Sign Out Button */}
-            <button
-              className="px-2 sm:px-4 py-2 rounded-lg border border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-red-300 dark:hover:text-red-300 hover:border-red-400/60 dark:hover:border-red-400/40 hover:bg-red-50/50 dark:hover:bg-red-900/10 hover:shadow-lg hover:shadow-red-300/20 dark:hover:shadow-red-500/10 transition-all duration-300 flex items-center gap-1 sm:gap-2"
-              onClick={signOut}
-            >
-              <svg
-                className="h-4 w-4 sm:h-5 sm:w-5"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V7.414l-4-4H3zm7 2a1 1 0 00-1 1v1H5a1 1 0 000 2h4v1a1 1 0 002 0V9.414l3 3V16H5V8h4V7a1 1 0 00-1-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span className="hidden sm:inline text-sm sm:text-base">
-                Sign out
-              </span>
-            </button>
-            {/* <Link
-           to="/upload"
-           className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
-         >
-           Get started for free
-         </Link> */}
           </div>
         </nav>
       </header>

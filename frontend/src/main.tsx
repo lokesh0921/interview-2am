@@ -12,6 +12,7 @@ import VectorSearch from "./pages/VectorSearch";
 import { SupabaseProvider } from "./supabase/SupabaseProvider";
 import Protected from "./supabase/Protected";
 import { Toaster } from "@/components/ui/toaster";
+import Header from "./components/Header";
 // import Auth from "./pages/Auth";
 
 const router = createBrowserRouter([

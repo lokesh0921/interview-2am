@@ -14,7 +14,7 @@ export default function App() {
         </div>
 
         {/* Hero Section */}
-        <main className="relative z-10 px-4 sm:px-6 py-12 sm:py-20">
+        <main className="relative z-10 px-4 sm:px-6 py-12 sm:py-20 pt-24 sm:pt-28">
           <div className="max-w-7xl mx-auto text-center">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold mb-6 sm:mb-8 leading-tight">
               Instant Insights.

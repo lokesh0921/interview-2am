@@ -3,6 +3,7 @@ import { apiFetch } from "../lib/api";
 import Header from "@/components/Header";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import { SummaryItemSkeleton } from "../components/ui/skeleton";
+import { toast, useToast } from "../hooks/use-toast";
 
 interface FileItem {
   _id: string;
@@ -32,6 +33,7 @@ export default function Summary() {
   const [hasMore, setHasMore] = useState(true);
   const [totalItems, setTotalItems] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [whatCopied, setWhatCopied] = useState("summary");
 
   const loadItems = useCallback(async (page: number, isInitial = false) => {
     try {
@@ -125,6 +127,17 @@ export default function Summary() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
+    if (whatCopied === "summary") {
+      toast({
+        title: "Summary Copied",
+        description: "Summary has been copied to clipboard",
+      });
+    } else {
+      toast({
+        title: "Raw Copied",
+        description: "Raw has been copied to clipboard",
+      });
+    }
     // Could add a toast notification here
   };
 
@@ -140,12 +153,16 @@ export default function Summary() {
     document.body.appendChild(linkElement);
     linkElement.click();
     document.body.removeChild(linkElement);
+    toast({
+      title: "JSON Downloaded",
+      description: "JSON has been downloaded",
+    });
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#010613] text-gray-900 dark:text-white space-y-6 sm:space-y-8">
       <Header />
-      <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+      <div className="p-4 sm:p-6 max-w-6xl mx-auto pt-24 sm:pt-28">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-4">
@@ -360,8 +377,9 @@ export default function Summary() {
                   {/* Card Footer - Actions */}
                   <div className="flex flex-wrap gap-2 pt-2 border-t dark:border-gray-700">
                     <button
+                      onMouseEnter={() => setWhatCopied("raw")}
                       onClick={() => copyToClipboard(item.text || "")}
-                      className="px-3 py-1.5 bg-gray-100 dark:bg-gray-500 hover:bg-gray-200 text-gray-950 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+                      className="px-3 py-1.5 bg-gray-100 dark:bg-gray-500 dark:hover:bg-gray-600 hover:bg-gray-200 text-gray-950 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -381,8 +399,9 @@ export default function Summary() {
                     </button>
 
                     <button
+                      onMouseEnter={() => setWhatCopied("summary")}
                       onClick={() => copyToClipboard(item.summary || "")}
-                      className="px-3 py-1.5 bg-gray-100 dark:bg-gray-500 hover:bg-gray-200 text-gray-950 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+                      className="px-3 py-1.5 bg-gray-100 dark:bg-gray-500 dark:hover:bg-gray-600 hover:bg-gray-200 text-gray-950 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -403,7 +422,7 @@ export default function Summary() {
 
                     <button
                       onClick={() => downloadJson(item)}
-                      className="px-3 py-1.5 bg-slate-100 dark:bg-gray-500 hover:bg-blue-200 text-gray-950 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ml-auto"
+                      className="px-3 py-1.5 bg-slate-100 dark:bg-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-950 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ml-auto"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
