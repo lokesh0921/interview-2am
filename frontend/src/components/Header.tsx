@@ -15,8 +15,13 @@ export default function Header() {
         <nav className="flex items-center justify-between max-w-7xl mx-auto">
           {/* Mobile Menu Button - Top Left */}
           <button
-            className="md:hidden p-2 rounded-lg border border-gray-300/40 dark:border-white/20 hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5 transition-all duration-300"
+            className={`md:hidden p-2 rounded-lg border transition-all duration-300 ${
+              mobileMenuOpen
+                ? "border-[#38BDF8]/50 bg-[#38BDF8]/10 dark:bg-[#38BDF8]/20"
+                : "border-gray-300/40 dark:border-white/20 bg-white/10 dark:bg-white/5 hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5"
+            }`}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle mobile menu"
           >
             <svg
               className="w-5 h-5"
@@ -209,54 +214,85 @@ export default function Header() {
 
       {/* Mobile Navigation Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden relative z-20 bg-white/95 dark:bg-[#010613]/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-white/10">
-          <div className="px-4 sm:px-6 py-4 space-y-2">
-            <Link
-              to="/"
-              className={`block px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-300 text-sm sm:text-base ${
-                location.pathname === "/"
-                  ? "bg-[#38BDF8]/20 border-[#38BDF8]/50 text-[#38BDF8] shadow-lg shadow-[#38BDF8]/20"
-                  : "border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-gray-900 dark:hover:text-white hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5"
-              }`}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Home
-            </Link>
-            <Link
-              to="/upload"
-              className={`block px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-300 text-sm sm:text-base ${
-                location.pathname === "/upload"
-                  ? "bg-[#38BDF8]/20 border-[#38BDF8]/50 text-[#38BDF8] shadow-lg shadow-[#38BDF8]/20"
-                  : "border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-gray-900 dark:hover:text-white hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5"
-              }`}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Upload
-            </Link>
-            <Link
-              to="/vector-search"
-              className={`block px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-300 text-sm sm:text-base ${
-                location.pathname === "/vector-search"
-                  ? "bg-[#38BDF8]/20 border-[#38BDF8]/50 text-[#38BDF8] shadow-lg shadow-[#38BDF8]/20"
-                  : "border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-gray-900 dark:hover:text-white hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5"
-              }`}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Vector Search
-            </Link>
-            <Link
-              to="/summary"
-              className={`block px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-300 text-sm sm:text-base ${
-                location.pathname === "/summary"
-                  ? "bg-[#38BDF8]/20 border-[#38BDF8]/50 text-[#38BDF8] shadow-lg shadow-[#38BDF8]/20"
-                  : "border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-gray-900 dark:hover:text-white hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5"
-              }`}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Summary
-            </Link>
+        <>
+          {/* Backdrop */}
+          <div
+            className="md:hidden fixed inset-0 z-40 bg-black/20 dark:bg-black/40"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+
+          {/* Menu */}
+          <div className="md:hidden fixed top-16 left-0 right-0 z-50 bg-white/95 dark:bg-[#010613]/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-white/10 shadow-lg animate-in slide-in-from-top-2 duration-200">
+            <div className="px-4 sm:px-6 py-4 space-y-2 max-w-7xl mx-auto">
+              {/* Close Button */}
+              <div className="flex justify-end mb-2">
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1 rounded-lg hover:bg-gray-100/50 dark:hover:bg-white/5 transition-colors"
+                  aria-label="Close menu"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <Link
+                to="/"
+                className={`block px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-300 text-sm sm:text-base ${
+                  location.pathname === "/"
+                    ? "bg-[#38BDF8]/20 border-[#38BDF8]/50 text-[#38BDF8] shadow-lg shadow-[#38BDF8]/20"
+                    : "border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-gray-900 dark:hover:text-white hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5"
+                }`}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Home
+              </Link>
+              <Link
+                to="/upload"
+                className={`block px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-300 text-sm sm:text-base ${
+                  location.pathname === "/upload"
+                    ? "bg-[#38BDF8]/20 border-[#38BDF8]/50 text-[#38BDF8] shadow-lg shadow-[#38BDF8]/20"
+                    : "border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-gray-900 dark:hover:text-white hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5"
+                }`}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Upload
+              </Link>
+              <Link
+                to="/vector-search"
+                className={`block px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-300 text-sm sm:text-base ${
+                  location.pathname === "/vector-search"
+                    ? "bg-[#38BDF8]/20 border-[#38BDF8]/50 text-[#38BDF8] shadow-lg shadow-[#38BDF8]/20"
+                    : "border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-gray-900 dark:hover:text-white hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5"
+                }`}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Vector Search
+              </Link>
+              <Link
+                to="/summary"
+                className={`block px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-300 text-sm sm:text-base ${
+                  location.pathname === "/summary"
+                    ? "bg-[#38BDF8]/20 border-[#38BDF8]/50 text-[#38BDF8] shadow-lg shadow-[#38BDF8]/20"
+                    : "border-gray-300/40 dark:border-white/20 text-gray-600 dark:text-white hover:text-gray-900 dark:hover:text-white hover:border-gray-400/60 dark:hover:border-white/40 hover:bg-gray-100/50 dark:hover:bg-white/5"
+                }`}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Summary
+              </Link>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </>
   );
