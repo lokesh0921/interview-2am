@@ -55,7 +55,7 @@ export default function App() {
         </div>
 
         {/* Hero Section */}
-        <main className="relative z-10 pt-4 sm:px-6 py-12 sm:py-20 pt-24 sm:pt-28">
+        <main className="relative z-10 px-4 sm:px-6 py-12 sm:py-20 pt-24 sm:pt-28">
           <div className="max-w-7xl mx-auto text-center">
             <h1 className="text-3xl sm:text-4xl mt-20 md:text-5xl lg:text-7xl font-bold mb-6 sm:mb-8 leading-tight">
               Instant Insights.
@@ -69,7 +69,7 @@ export default function App() {
             </p>
 
             {/* Document Statistics Cards */}
-            <div className="mx-52 bottom-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-7 sm:gap-6 lg:gap-8 mt-12 sm:mt-32">
+            <div className="px-4 sm:px-8 lg:px-16 xl:px-32 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mt-12 sm:mt-20">
               {/* Total Documents Card */}
               <div className="bg-white/80 dark:bg-[#010613]/80 backdrop-blur-sm border border-gray-200/50 dark:border-white/20 rounded-2xl p-4 sm:p-6 hover:bg-white/90 dark:hover:bg-[#010613]/90 transition-all duration-300 shadow-lg dark:shadow-none">
                 <div className="flex items-center justify-between mb-4">

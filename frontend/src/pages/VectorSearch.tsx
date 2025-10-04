@@ -651,7 +651,7 @@ export default function VectorSearch() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#010613] text-gray-900 dark:text-white">
       <Header />
-      <div className="container mx-auto p-6 max-w-7xl pt-24 sm:pt-28">
+      <div className="container mx-auto px-4 sm:p-6 max-w-7xl pt-24 sm:pt-28">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Vector Search</h1>
           <p className="text-gray-600 dark:text-white">
@@ -680,41 +680,48 @@ export default function VectorSearch() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Enter your search query..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                    className="flex-1"
-                  />
-                  <Button
-                    onClick={handleSearch}
-                    disabled={isSearching}
-                    className="px-8"
-                  >
-                    {isSearching ? "Searching..." : "Search"}
-                  </Button>
-                  <Button
-                    onClick={handleSimpleSearch}
-                    disabled={isSearching}
-                    variant="outline"
-                    className="px-4"
-                  >
-                    Simple Search
-                  </Button>
-                  <Button
-                    onClick={handleDebugCheck}
-                    disabled={isSearching}
-                    variant="outline"
-                    className="px-4"
-                  >
-                    Debug
-                  </Button>
+                {/* Search Input - Mobile Responsive */}
+                <div className="space-y-3 sm:space-y-0">
+                  <div className="flex flex-col mb-4 sm:flex-row gap-2">
+                    <Input
+                      placeholder="Enter your search query..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                      className="flex-1 w-full sm:w-auto"
+                    />
+                    <Button
+                      onClick={handleSearch}
+                      disabled={isSearching}
+                      className="w-full sm:w-auto px-8"
+                    >
+                      {isSearching ? "Searching..." : "Search"}
+                    </Button>
+                  </div>
+
+                  {/* Action Buttons - Stack on mobile */}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      onClick={handleSimpleSearch}
+                      disabled={isSearching}
+                      variant="outline"
+                      className="w-full sm:w-auto px-4"
+                    >
+                      Simple Search
+                    </Button>
+                    <Button
+                      onClick={handleDebugCheck}
+                      disabled={isSearching}
+                      variant="outline"
+                      className="w-full sm:w-auto px-4"
+                    >
+                      Debug
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Filters */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <label className="text-sm font-medium mb-2 block">
                       Min Similarity Score
@@ -765,11 +772,11 @@ export default function VectorSearch() {
                 </div>
 
                 {/* Clear Filters Button */}
-                <div className="flex justify-end">
+                <div className="flex justify-center sm:justify-end">
                   <Button
                     variant="outline"
                     onClick={clearFilters}
-                    className="w-auto"
+                    className="w-full sm:w-auto"
                   >
                     Clear All Filters
                   </Button>
@@ -795,6 +802,7 @@ export default function VectorSearch() {
                             onClick={() =>
                               handleTagToggle(industry, "industries")
                             }
+                            className="text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-2"
                           >
                             {industry}
                           </Button>
@@ -819,6 +827,7 @@ export default function VectorSearch() {
                             }
                             size="sm"
                             onClick={() => handleTagToggle(sector, "sectors")}
+                            className="text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-2"
                           >
                             {sector}
                           </Button>
@@ -845,6 +854,7 @@ export default function VectorSearch() {
                             onClick={() =>
                               handleTagToggle(stock, "stock_names")
                             }
+                            className="text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-2"
                           >
                             {stock}
                           </Button>
@@ -880,8 +890,8 @@ export default function VectorSearch() {
                           className="border-l-4 border-l-blue-500"
                         >
                           <CardHeader className="pb-3">
-                            <div className="flex justify-between items-start">
-                              <div>
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                              <div className="flex-1">
                                 <CardTitle className="text-lg">
                                   {result.filename || "Unknown filename"}
                                 </CardTitle>
@@ -894,7 +904,7 @@ export default function VectorSearch() {
                                     )}`}
                                 </CardDescription>
                               </div>
-                              <div className="text-right">
+                              <div className="text-left sm:text-right">
                                 <div className="text-sm font-medium">
                                   {result.similarity_score &&
                                   !isNaN(result.similarity_score)
@@ -940,10 +950,11 @@ export default function VectorSearch() {
                               )}
                             </div>
 
-                            <div className="flex gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2">
                               <Button
                                 size="sm"
                                 variant="outline"
+                                className="w-full sm:w-auto"
                                 onClick={async () => {
                                   try {
                                     const summaryText =
