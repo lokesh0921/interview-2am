@@ -61,13 +61,13 @@ export default function Login() {
       </main>
 
       {/* Footer */}
-      <footer className="px-4 sm:px-6 py-6">
+      {/* <footer className="px-4 sm:px-6 py-6">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-sm text-gray-500 dark:text-gray-400">
             © 2024 Tradonomy Edge. All rights reserved.
           </p>
         </div>
-      </footer>
+      </footer> */}
     </div>
   );
 }

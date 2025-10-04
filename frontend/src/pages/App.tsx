@@ -1,6 +1,47 @@
 import Header from "../components/Header";
+import { useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
+
+interface DocumentStats {
+  total_documents: number;
+  processed_documents: number;
+  processing_status: Record<string, number>;
+}
 
 export default function App() {
+  const [documentStats, setDocumentStats] = useState<DocumentStats | null>(
+    null
+  );
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadDocumentStats = async () => {
+      try {
+        const token = import.meta.env.DEV ? "dev-test-token" : undefined;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        const response = await apiFetch("/vector-search/stats", {
+          headers: headers as Record<string, string>,
+        });
+
+        if (response.success && response.data) {
+          setDocumentStats(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load document stats:", error);
+        // Set fallback stats
+        setDocumentStats({
+          total_documents: 0,
+          processed_documents: 0,
+          processing_status: {},
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDocumentStats();
+  }, []);
   return (
     <div>
       <Header />
@@ -14,9 +55,9 @@ export default function App() {
         </div>
 
         {/* Hero Section */}
-        <main className="relative z-10 px-4 sm:px-6 py-12 sm:py-20 pt-24 sm:pt-28">
+        <main className="relative z-10 pt-4 sm:px-6 py-12 sm:py-20 pt-24 sm:pt-28">
           <div className="max-w-7xl mx-auto text-center">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold mb-6 sm:mb-8 leading-tight">
+            <h1 className="text-3xl sm:text-4xl mt-20 md:text-5xl lg:text-7xl font-bold mb-6 sm:mb-8 leading-tight">
               Instant Insights.
               <br />
               Efficient Decisions.
@@ -27,127 +68,114 @@ export default function App() {
               <span className="text-[#38BDF8]">Instant Insights.</span>
             </p>
 
-            {/* Feature Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mt-12 sm:mt-20">
-              {/* Tax Ready Card */}
-              <div className="bg-white/80 dark:bg-[#010613]/80 backdrop-blur-sm border border-gray-200/50 dark:border-white/20 rounded-2xl p-4 sm:p-6">
-                <div className="mb-4 sm:mb-6">
-                  <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-left">
-                    Be market ready
-                  </h3>
-                  <div className="bg-gray-100/80 dark:bg-[#010613]/70 rounded-lg p-3 sm:p-4 space-y-2 sm:space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-500 dark:text-white text-xs sm:text-sm">
-                        FTSE:
-                      </span>
-                      <span className="text-[#38BDF8] text-xs sm:text-sm">
-                        41268 (+0.04%)
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-500 dark:text-white text-xs sm:text-sm">
-                        CAC:
-                      </span>
-                      <span className="text-[#38BDF8] text-xs sm:text-sm">
-                        7588 (+0.31%){" "}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-500 dark:text-white text-xs sm:text-sm">
-                        DAX:
-                      </span>
-                      <span className="text-[#38BDF8] text-xs sm:text-sm">
-                        18765 (+0.37%)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Fundraise Ready Card */}
+            {/* Document Statistics Cards */}
+            <div className="mx-52 bottom-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-7 sm:gap-6 lg:gap-8 mt-12 sm:mt-32">
+              {/* Total Documents Card */}
               <div className="bg-white/80 dark:bg-[#010613]/80 backdrop-blur-sm border border-gray-200/50 dark:border-white/20 rounded-2xl p-4 sm:p-6 hover:bg-white/90 dark:hover:bg-[#010613]/90 transition-all duration-300 shadow-lg dark:shadow-none">
-                <div className="mb-2">
-                  <h3 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3 text-left">
-                    Get market insights
-                  </h3>
-                  <div className="bg-gray-100/80 dark:bg-[#010613]/70 rounded-lg p-3 sm:p-4">
-                    <div className="bg-[#0D1117] rounded-xl p-3 sm:p-4 flex flex-col items-center justify-center">
-                      <h3 className="text-white text-xs sm:text-sm mb-2">
-                        Market Trend
-                      </h3>
-                      <div className="w-full h-20">
-                        <svg
-                          viewBox="0 0 100 100"
-                          preserveAspectRatio="none"
-                          className="w-full h-full"
-                        >
-                          <polyline
-                            fill="none"
-                            stroke="url(#lineGradient)"
-                            strokeWidth="2"
-                            points="0,70 15,60 30,75 45,50 60,55 75,30 90,40 100,20"
-                          />
-                          <defs>
-                            <linearGradient
-                              id="lineGradient"
-                              x1="0"
-                              y1="0"
-                              x2="1"
-                              y2="0"
-                            >
-                              <stop offset="0%" stopColor="#BE1417" />
-                              <stop offset="100%" stopColor="#0CA054" />
-                            </linearGradient>
-                          </defs>
-                        </svg>
-                      </div>
-                      <p className="text-gray-400 text-xs mt-2">
-                        Nifty 50 • +0.48%
-                      </p>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-[#38BDF8]/10 dark:bg-[#38BDF8]/20 rounded-lg flex items-center justify-center">
+                    <svg
+                      className="w-6 h-6 text-[#38BDF8]"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                      {loading ? "..." : documentStats?.total_documents || 0}
+                    </div>
+                    <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                      Total Documents
                     </div>
                   </div>
                 </div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">
+                  All uploaded documents in the system
+                </div>
               </div>
 
-              {/* Accurate Books Card */}
+              {/* Processed Documents Card */}
               <div className="bg-white/80 dark:bg-[#010613]/80 backdrop-blur-sm border border-gray-200/50 dark:border-white/20 rounded-2xl p-4 sm:p-6 hover:bg-white/90 dark:hover:bg-[#010613]/90 transition-all duration-300 shadow-lg dark:shadow-none">
-                <div className="mb-4 sm:mb-6">
-                  <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-left">
-                    Get instant data, faster
-                  </h3>
-                  <div className="space-y-3 sm:space-y-4">
-                    <div className="flex items-center space-x-2 sm:space-x-3">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
-                        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-blue-500 relative">
-                          <div className="absolute inset-1 bg-gray-100 dark:bg-[#010613] rounded-full"></div>
-                          <div className="absolute top-1 left-1 w-4 h-2 sm:w-6 sm:h-3 bg-blue-500 rounded-full"></div>
-                        </div>
-                      </div>
-                      <div className="text-left">
-                        <div className="text-xs sm:text-sm font-medium">
-                          Nifty ⬆️ 81 points (+0.33%)
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-white"></div>
-                      </div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                    <svg
+                      className="w-6 h-6 text-green-600 dark:text-green-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                      {loading
+                        ? "..."
+                        : documentStats?.processed_documents || 0}
                     </div>
-
-                    <div className="flex items-center space-x-2 sm:space-x-3">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
-                        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-purple-500 relative">
-                          <div className="absolute inset-1 bg-gray-100 dark:bg-[#010613] rounded-full"></div>
-                          <div className="absolute top-1 left-1 w-4 h-2 sm:w-6 sm:h-3 bg-purple-500 rounded-full"></div>
-                        </div>
-                      </div>
-                      <div className="text-left">
-                        <div className="text-xs sm:text-sm font-medium">
-                          Sensex had dropped 3.30% over the past eight days.
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-white"></div>
-                      </div>
+                    <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                      Processed
                     </div>
                   </div>
                 </div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">
+                  Successfully processed and summarized documents
+                </div>
               </div>
+
+              {/* Processing Rate Card */}
+              {/* <div className="bg-white/80 dark:bg-[#010613]/80 backdrop-blur-sm border border-gray-200/50 dark:border-white/20 rounded-2xl p-4 sm:p-6 hover:bg-white/90 dark:hover:bg-[#010613]/90 transition-all duration-300 shadow-lg dark:shadow-none">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+                    <svg
+                      className="w-6 h-6 text-purple-600 dark:text-purple-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                      />
+                    </svg>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                      {loading
+                        ? "..."
+                        : documentStats && documentStats.total_documents > 0
+                        ? Math.round(
+                            ((documentStats.processed_documents || 0) /
+                              documentStats.total_documents) *
+                              100
+                          )
+                        : 0}
+                      %
+                    </div>
+                    <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                      Processing Rate
+                    </div>
+                  </div>
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">
+                  Successfully processed documents
+                </div>
+              </div> */}
             </div>
           </div>
         </main>

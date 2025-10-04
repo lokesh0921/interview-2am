@@ -3,7 +3,9 @@ import { apiFetch } from "../lib/api";
 import Header from "@/components/Header";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import { SummaryItemSkeleton } from "../components/ui/skeleton";
-import { toast, useToast } from "../hooks/use-toast";
+import { toast } from "../hooks/use-toast";
+import ConfirmationDialog from "../components/ui/confirmation-dialog";
+import { Trash2 } from "lucide-react";
 
 interface FileItem {
   _id: string;
@@ -34,6 +36,11 @@ export default function Summary() {
   const [totalItems, setTotalItems] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [whatCopied, setWhatCopied] = useState("summary");
+  const [deleteDialog, setDeleteDialog] = useState<{
+    isOpen: boolean;
+    item: FileItem | null;
+  }>({ isOpen: false, item: null });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadItems = useCallback(async (page: number, isInitial = false) => {
     try {
@@ -157,6 +164,51 @@ export default function Summary() {
       title: "JSON Downloaded",
       description: "JSON has been downloaded",
     });
+  };
+
+  const handleDeleteClick = (item: FileItem) => {
+    setDeleteDialog({ isOpen: true, item });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteDialog.item) return;
+
+    setIsDeleting(true);
+    try {
+      const token = import.meta.env.DEV ? "dev-test-token" : undefined;
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      await apiFetch(`/vector-search/documents/${deleteDialog.item._id}`, {
+        method: "DELETE",
+        headers: headers as Record<string, string>,
+      });
+
+      // Remove the item from the local state
+      setItems((prevItems) =>
+        prevItems.filter((item) => item._id !== deleteDialog.item!._id)
+      );
+      setTotalItems((prevTotal) => prevTotal - 1);
+
+      toast({
+        title: "Document Deleted",
+        description: `${deleteDialog.item.filename} has been permanently deleted`,
+      });
+
+      setDeleteDialog({ isOpen: false, item: null });
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete document. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialog({ isOpen: false, item: null });
   };
 
   return (
@@ -320,10 +372,19 @@ export default function Summary() {
                         </svg>
                       )}
                     </div>
-                    <div>
-                      <h3 className="font-medium text-lg text-gray-900 dark:text-gray-100">
-                        {item.filename}
-                      </h3>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium text-lg text-gray-900 dark:text-gray-100">
+                          {item.filename}
+                        </h3>
+                        <button
+                          onClick={() => handleDeleteClick(item)}
+                          className="p-2 mr-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                          title="Delete document"
+                        >
+                          <Trash2 className="w-6 h-6" />
+                        </button>
+                      </div>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {item.categories?.map((category, idx) => (
                           <span
@@ -479,6 +540,18 @@ export default function Summary() {
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Document"
+        description={`Are you sure you want to permanently delete "${deleteDialog.item?.filename}"? This action cannot be undone and will remove both the summary and raw data.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

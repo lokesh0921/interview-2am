@@ -658,54 +658,6 @@ export default function VectorSearch() {
             Semantic search across all documents with AI-powered summarization
             and tagging (Global Access)
           </p>
-
-          {documentStats && (
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 ">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Total Documents
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {documentStats.total_documents}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Processed
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {documentStats.processed_documents}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Processing Rate
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {documentStats.total_documents > 0
-                      ? Math.round(
-                          (documentStats.processed_documents /
-                            documentStats.total_documents) *
-                            100
-                        )
-                      : 0}
-                    %
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
         </div>
 
         <Tabs
