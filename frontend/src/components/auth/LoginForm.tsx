@@ -72,7 +72,7 @@ export default function LoginForm({
 
       toast({
         title: "Login failed",
-        description: errorMessage,
+        description: "You are not a registered user. Please sign up first.",
         variant: "destructive",
         duration: 5000,
       });
