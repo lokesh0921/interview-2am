@@ -56,9 +56,23 @@ export default function LoginForm({
       onSuccess?.();
     } catch (error: any) {
       console.error("Login error:", error);
+
+      // Handle specific Supabase errors
+      let errorMessage = error.message || "Please try again.";
+
+      if (error.message?.includes("Invalid login credentials")) {
+        errorMessage =
+          "No account found with this email. Please sign up first.";
+      } else if (error.message?.includes("Email not confirmed")) {
+        errorMessage =
+          "Please check your email and click the confirmation link.";
+      } else if (error.message?.includes("signup not allowed")) {
+        errorMessage = "Account creation is disabled. Please contact support.";
+      }
+
       toast({
         title: "Login failed",
-        description: error.message || "Please try again.",
+        description: errorMessage,
         variant: "destructive",
         duration: 5000,
       });

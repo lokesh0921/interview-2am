@@ -262,7 +262,11 @@ export default function Upload() {
                       className="text-xs sm:text-sm px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors flex items-center gap-1 self-start sm:self-auto"
                       onClick={() => {
                         navigator.clipboard.writeText(r.summary);
-                        alert("Summary copied to clipboard!");
+                        toast({
+                          title: "Summary Copied",
+                          description: "Summary has been copied to clipboard",
+                          variant: "default",
+                        });
                       }}
                     >
                       <svg

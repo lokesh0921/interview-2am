@@ -72,7 +72,7 @@ export async function generateComprehensiveSummary(content, filename) {
 
     const targetWords = targetSummaryPages * wordsPerPage;
 
-    // Truncate content if too long (GPT-4o has a 128k context limit)
+    // Truncate content if too long (GPT-5 has a 128k context limit)
     const maxContentLength = 120000; // Leave room for prompt
     const truncatedContent =
       content.length > maxContentLength
@@ -106,7 +106,7 @@ Structure your summary with:
 Generate a comprehensive summary that maintains the document's essential information while condensing it to approximately ${targetWords} words.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5-mini",
       messages: [
         {
           role: "system",
@@ -134,7 +134,7 @@ Generate a comprehensive summary that maintains the document's essential informa
     return {
       summary,
       processing_metadata: {
-        ai_model_used: "gpt-4o",
+        ai_model_used: "gpt-5-mini",
         processing_time_ms: processingTime,
         tokens_used: tokensUsed,
         target_summary_pages: targetSummaryPages,
@@ -149,7 +149,7 @@ Generate a comprehensive summary that maintains the document's essential informa
 }
 
 /**
- * Process document content using OpenAI GPT-4o-mini for summarization, tagging, and temporal extraction
+ * Process document content using OpenAI GPT-5-mini for summarization, tagging, and temporal extraction
  * @param {string} content - Raw document content
  * @param {string} filename - Original filename for context
  * @returns {Promise<Object>} - Processed document data
@@ -165,7 +165,7 @@ export async function processDocumentWithAI(content, filename) {
     // Generate comprehensive summary first
     const summaryResult = await generateComprehensiveSummary(content, filename);
 
-    // Truncate content if too long (GPT-4o-mini has a 128k context limit)
+    // Truncate content if too long (GPT-5-mini has a 128k context limit)
     const maxContentLength = 100000; // Leave room for prompt
     const truncatedContent =
       content.length > maxContentLength
@@ -197,7 +197,7 @@ Rules:
 - Extract actual companies/industries mentioned, not generic ones`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5-mini",
       messages: [
         {
           role: "system",
@@ -273,7 +273,7 @@ Rules:
           ? Math.max(0, Math.min(1, analysis.confidence_score))
           : 0.8,
       processing_metadata: {
-        ai_model_used: "gpt-4o (comprehensive) + gpt-4o-mini (metadata)",
+        ai_model_used: "gpt-5-mini (comprehensive) + gpt-5-mini (metadata)",
         processing_time_ms: processingTime,
         tokens_used: tokensUsed,
         comprehensive_summary_metadata: summaryResult.processing_metadata,

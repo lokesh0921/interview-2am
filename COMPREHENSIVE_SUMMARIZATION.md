@@ -57,14 +57,14 @@ Returns only the comprehensive summary with processing metadata.
 
 ### AI Models Used
 
-- **GPT-4o**: For comprehensive summarization (up to 8,000 tokens)
-- **GPT-4o-mini**: For brief summary and metadata extraction
+- **GPT-5**: For comprehensive summarization (up to 8,000 tokens)
+- **GPT-5-mini**: For brief summary and metadata extraction
 
 ### Processing Flow
 
 1. Document upload and text extraction
-2. Comprehensive summary generation using GPT-4o
-3. Brief summary and metadata extraction using GPT-4o-mini
+2. Comprehensive summary generation using GPT-5
+3. Brief summary and metadata extraction using GPT-5-mini
 4. Embedding generation for vector search
 5. Storage in MongoDB with both summary types
 

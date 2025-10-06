@@ -56,9 +56,23 @@ export default function SignupForm({
       onSuccess?.();
     } catch (error: any) {
       console.error("Signup error:", error);
+
+      // Handle specific Supabase errors
+      let errorMessage = error.message || "Please try again.";
+
+      if (error.message?.includes("signup not allowed")) {
+        errorMessage =
+          "New user signups are currently disabled. Please contact support.";
+      } else if (error.message?.includes("email not confirmed")) {
+        errorMessage =
+          "Please check your email and click the confirmation link.";
+      } else if (error.message?.includes("invalid email")) {
+        errorMessage = "Please enter a valid email address.";
+      }
+
       toast({
         title: "Signup failed",
-        description: error.message || "Please try again.",
+        description: errorMessage,
         variant: "destructive",
         duration: 5000,
       });

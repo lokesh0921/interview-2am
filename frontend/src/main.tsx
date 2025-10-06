@@ -13,6 +13,7 @@ import { SupabaseProvider } from "./supabase/SupabaseProvider";
 import Protected from "./supabase/Protected";
 import { Toaster } from "@/components/ui/toaster";
 import Header from "./components/Header";
+import Signup from "./pages/Signup";
 // import Auth from "./pages/Auth";
 
 const router = createBrowserRouter([
@@ -65,6 +66,7 @@ const router = createBrowserRouter([
     ),
   },
   { path: "/login", element: <Login /> },
+  { path: "/signup", element: <Signup /> },
 ]);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

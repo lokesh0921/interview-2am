@@ -43,7 +43,7 @@ const DocumentSummarySchema = new mongoose.Schema(
       max: 1,
     },
     processing_metadata: {
-      ai_model_used: { type: String, default: "gpt-4o-mini" },
+      ai_model_used: { type: String, default: "gpt-5-mini" },
       processing_time_ms: { type: Number },
       tokens_used: { type: Number },
     },

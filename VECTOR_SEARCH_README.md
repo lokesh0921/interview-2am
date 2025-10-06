@@ -47,7 +47,7 @@ Stores AI-processed summaries, tags, and vector embeddings:
   embedding_model: String,            // Model used for embeddings
   confidence_score: Number,           // AI confidence (0-1)
   processing_metadata: {
-    ai_model_used: String,            // GPT-4o-mini
+    ai_model_used: String,            // GPT-5-mini
     processing_time_ms: Number,       // Processing duration
     tokens_used: Number               // OpenAI tokens consumed
   }
@@ -63,9 +63,9 @@ Stores AI-processed summaries, tags, and vector embeddings:
 - Text extraction using existing `extract.js` service
 - Raw document metadata stored in `raw_documents` collection
 
-### 2. AI Analysis (OpenAI GPT-4o-mini)
+### 2. AI Analysis (OpenAI GPT-5-mini)
 
-The system uses OpenAI's GPT-4o-mini model for:
+The system uses OpenAI's GPT-5-mini model for:
 
 - **Summarization**: Concise 2-3 sentence summaries
 - **Tag Extraction**: Industries, sectors, company names, general tags
