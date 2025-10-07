@@ -10,42 +10,21 @@ export default function Signup() {
       <header className="px-4 sm:px-6 py-4 sm:py-6">
         <nav className="flex items-center justify-between max-w-7xl mx-auto">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="flex items-center space-x-0" aria-label="Tradonomy">
-              <span className="text-black dark:text-white text-lg sm:text-xl font-extrabold tracking-tight">
-                Trado
-              </span>
-              <svg
-                width="28"
-                height="24"
-                viewBox="0 0 34 28"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="inline-block sm:w-8 sm:h-7"
-                role="img"
-                aria-hidden="true"
-              >
-                <rect width="34" height="28" rx="6" fill="#071122" />
-                <path
-                  d="M6 20 L13 10 L20 18 L27 6"
-                  stroke="#16A34A"
-                  strokeWidth="2.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M6 20 L13 14 L20 22 L27 12"
-                  stroke="#EF4444"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  opacity="0.9"
-                />
-              </svg>
-              <span className="text-black dark:text-white text-lg sm:text-xl font-extrabold tracking-tight">
-                omy <span className="text-[#38BDF8] pl-1 sm:pl-2"> Edge</span>
-              </span>
-            </div>
+          <Link
+            to="/"
+            className="flex items-center space-x-2"
+            aria-label="TradoNomy.ai"
+          >
+            <img
+              src="/tradonomy-logo-light.png"
+              alt="TradoNomy.ai"
+              className="block dark:hidden h-6 w-auto sm:h-8 md:h-10"
+            />
+            <img
+              src="/tradonomy-logo-dark.png"
+              alt="TradoNomy.ai"
+              className="hidden dark:block h-6 w-auto sm:h-8 md:h-10"
+            />
           </Link>
 
           {/* Theme Toggle */}
