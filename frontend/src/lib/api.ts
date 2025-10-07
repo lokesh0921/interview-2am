@@ -1,12 +1,44 @@
 export const API_BASE =
   import.meta.env.VITE_API_BASE || "http://localhost:4001/api";
 
+function getAccessTokenFromLocalStorage(): string {
+  // Existing fallback key used elsewhere in the app
+  const directToken = localStorage.getItem("sb:token");
+  if (directToken) return directToken;
+
+  // Supabase stores session in a key like: sb-<project-ref>-auth-token
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) || "";
+      if (/^sb-.*-auth-token$/.test(key)) {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
+        const accessToken =
+          parsed?.access_token || parsed?.currentSession?.access_token;
+        if (typeof accessToken === "string" && accessToken) {
+          return accessToken;
+        }
+        // Some Supabase versions store { currentSession: { access_token } }
+        const nested = parsed?.currentSession || parsed?.user;
+        if (nested?.access_token) {
+          return nested.access_token;
+        }
+      }
+    }
+  } catch (_) {
+    // Ignore JSON parse errors and continue without token
+  }
+
+  return "";
+}
+
 export async function apiFetch(path: string, opts: RequestInit = {}) {
-  // Try to get token from localStorage first, then from session
-  const token = localStorage.getItem("sb:token") || "";
+  // Try to get token from localStorage (handles both dev and production Supabase keys)
+  const token = getAccessTokenFromLocalStorage();
   const headers = new Headers(opts.headers || {});
 
-  if (token) {
+  if (token && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
