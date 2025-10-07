@@ -25,12 +25,16 @@ async function verifyWithJwks(token) {
 async function verifyWithSupabaseAPI(token) {
   if (!config.SUPABASE_URL || !config.SUPABASE_ANON_KEY) return null;
   try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 4000);
     const resp = await fetch(`${config.SUPABASE_URL}/auth/v1/user`, {
       headers: {
         Authorization: `Bearer ${token}`,
         apikey: config.SUPABASE_ANON_KEY,
       },
+      signal: controller.signal,
     });
+    clearTimeout(t);
     if (!resp.ok) return null;
     const user = await resp.json();
     return { ...user, sub: user.id };
@@ -70,17 +74,18 @@ async function parseAuth(req) {
   }
 
   console.log("Token found, attempting verification...");
-  const viaJwks = await verifyWithJwks(token);
-  if (viaJwks) {
-    console.log("Token verified via JWKS");
-    return withAdminRole(viaJwks);
-  }
-
-  console.log("JWKS verification failed, trying Supabase API...");
+  // Prefer Supabase API (fast, HS256-compatible) with timeout first
   const viaAPI = await verifyWithSupabaseAPI(token);
   if (viaAPI) {
     console.log("Token verified via Supabase API");
     return withAdminRole(viaAPI);
+  }
+
+  console.log("Supabase API verification failed or timed out, trying JWKS...");
+  const viaJwks = await verifyWithJwks(token);
+  if (viaJwks) {
+    console.log("Token verified via JWKS");
+    return withAdminRole(viaJwks);
   }
 
   console.log("All verification methods failed");
@@ -93,18 +98,19 @@ export const authMiddleware = {
     next();
   },
   required: async (req, res, next) => {
+    if (req.user) return next();
     const user = await parseAuth(req);
     if (!user) return res.status(401).json({ error: "Unauthorized" });
     req.user = user;
     next();
   },
   adminOnly: async (req, res, next) => {
-    const user = await parseAuth(req);
+    if (!req.user) req.user = await parseAuth(req);
+    const user = req.user;
     if (!user) return res.status(401).json({ error: "Unauthorized" });
     const role =
       user.app_metadata?.role || user.role || user.user_metadata?.role;
     if (role !== "admin") return res.status(403).json({ error: "Forbidden" });
-    req.user = user;
     next();
   },
 };

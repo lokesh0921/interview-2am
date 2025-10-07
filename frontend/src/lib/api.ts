@@ -19,15 +19,53 @@ function getAccessTokenFromLocalStorage(): string {
         if (typeof accessToken === "string" && accessToken) {
           return accessToken;
         }
-        // Some Supabase versions store { currentSession: { access_token } }
-        const nested = parsed?.currentSession || parsed?.user;
+        const nested = parsed?.currentSession || parsed?.user || parsed?.token;
         if (nested?.access_token) {
           return nested.access_token;
         }
       }
     }
   } catch (_) {
-    // Ignore JSON parse errors and continue without token
+    // Ignore JSON parse errors and continue
+  }
+
+  // Last resort: scan all localStorage values to find something that looks like a JWT
+  try {
+    const jwtRegex = /^[\w-]+\.[\w-]+\.[\w-]+$/; // crude JWT shape
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) || "";
+      const val = localStorage.getItem(key) || "";
+      if (!val) continue;
+      // If it's JSON, try to parse and look for access_token anywhere
+      if (val.startsWith("{") || val.startsWith("[")) {
+        try {
+          const parsed = JSON.parse(val);
+          const stack = [parsed];
+          while (stack.length) {
+            const cur = stack.pop();
+            if (!cur) continue;
+            if (typeof cur === "string" && jwtRegex.test(cur)) return cur;
+            if (cur && typeof cur === "object") {
+              for (const k of Object.keys(cur)) {
+                const v = (cur as any)[k];
+                if (k === "access_token" && typeof v === "string" && v) {
+                  return v;
+                }
+                if (v && (typeof v === "object" || typeof v === "string")) {
+                  stack.push(v);
+                }
+              }
+            }
+          }
+        } catch (_) {
+          // ignore
+        }
+      } else if (jwtRegex.test(val)) {
+        return val;
+      }
+    }
+  } catch (_) {
+    // ignore
   }
 
   return "";
