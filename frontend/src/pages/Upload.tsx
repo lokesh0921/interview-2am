@@ -10,6 +10,7 @@ export default function Upload() {
   const { toast } = useToast();
   const [files, setFiles] = useState<FileList | null>(null);
   const [text, setText] = useState("");
+  const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"files" | "text">("files");
@@ -46,6 +47,9 @@ export default function Upload() {
       for (const file of Array.from(files)) {
         const form = new FormData();
         form.append("file", file); // Single file for vector search
+        if (prompt && prompt.trim()) {
+          form.append("prompt", prompt.trim());
+        }
 
         const res = await fetch(`${apiBase}/vector-search/upload`, {
           method: "POST",
@@ -61,6 +65,7 @@ export default function Upload() {
       setResults(results);
       setShowPreview(false);
       setFiles(null);
+      setPrompt("");
 
       toast({
         title: "Upload Successful",
@@ -97,6 +102,9 @@ export default function Upload() {
 
       const form = new FormData();
       form.append("file", textFile);
+      if (prompt && prompt.trim()) {
+        form.append("prompt", prompt.trim());
+      }
 
       const res = await fetch(`${apiBase}/vector-search/upload`, {
         method: "POST",
@@ -113,6 +121,7 @@ export default function Upload() {
 
       const result = await res.json();
       setResults([result.data]);
+      setPrompt("");
 
       toast({
         title: "Text Processed Successfully",
@@ -176,14 +185,46 @@ export default function Upload() {
                     loading={loading}
                   />
                 ) : null}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                    Prompt (optional)
+                  </label>
+                  <textarea
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="Provide custom instructions for summarization (e.g., focus on risks, extract KPIs, compare scenarios)"
+                    className="w-full h-24 dark:bg-[#010613] border rounded-xl p-3 text-sm text-gray-700 dark:text-white focus:ring-2 focus:ring-blue-900 focus:border-blue-900 outline-none transition-all"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    If left empty, the default summarization prompt will be
+                    used.
+                  </p>
+                </div>
               </div>
             ) : (
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Paste text here for processing..."
-                className="w-full h-40 dark:bg-[#010613] sm:h-60 border rounded-xl p-3 sm:p-4 text-sm sm:text-base text-gray-700 dark:text-white focus:ring-2 focus:ring-blue-900 focus:border-blue-900 outline-none transition-all"
-              />
+              <>
+                <textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Paste text here for processing..."
+                  className="w-full h-40 dark:bg-[#010613] sm:h-60 border rounded-xl p-3 sm:p-4 text-sm sm:text-base text-gray-700 dark:text-white focus:ring-2 focus:ring-blue-900 focus:border-blue-900 outline-none transition-all"
+                />
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                    Prompt (optional)
+                  </label>
+                  <textarea
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="Provide custom instructions for summarization (e.g., focus on risks, extract KPIs, compare scenarios)"
+                    className="w-full h-24 dark:bg-[#010613] border rounded-xl p-3 text-sm text-gray-700 dark:text-white focus:ring-2 focus:ring-blue-900 focus:border-blue-900 outline-none transition-all"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    If left empty, the default summarization prompt will be
+                    used.
+                  </p>
+                </div>
+              </>
             )}
 
             {activeTab === "text" && (

@@ -18,6 +18,7 @@ export default function VectorFileUploader({
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [customPrompt, setCustomPrompt] = useState("");
 
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -41,6 +42,9 @@ export default function VectorFileUploader({
     try {
       const formData = new FormData();
       formData.append("file", file);
+      if (customPrompt && customPrompt.trim().length > 0) {
+        formData.append("prompt", customPrompt.trim());
+      }
 
       const result = await apiFetch("/vector-search/upload", {
         method: "POST",
@@ -159,6 +163,24 @@ export default function VectorFileUploader({
             <p>Maximum file size: 50MB</p>
           </div>
         </div>
+      </div>
+
+      {/* Optional custom prompt input */}
+      <div className="mt-4">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Optional: Custom summary prompt for this file
+        </label>
+        <textarea
+          value={customPrompt}
+          onChange={(e) => setCustomPrompt(e.target.value)}
+          placeholder="E.g., Focus on financial metrics and risk factors, keep it under 300 words"
+          className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900"
+          rows={4}
+          disabled={isUploading}
+        />
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          If left empty, the backend will use its default summarization prompt.
+        </p>
       </div>
 
       {isUploading && (

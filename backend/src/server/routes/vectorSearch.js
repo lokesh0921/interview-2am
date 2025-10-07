@@ -55,8 +55,11 @@ router.post(
       }
 
       const userId = req.user.sub; // Supabase user ID
+      const prompt =
+        typeof req.body?.prompt === "string" ? req.body.prompt : undefined;
       const result = await uploadDocumentForVectorSearch(req.file, userId, {
         source: "vector_search_upload",
+        prompt,
       });
 
       res.status(201).json({

@@ -113,7 +113,8 @@ The document has been uploaded and processed for metadata extraction and AI anal
     try {
       const aiProcessedData = await processCompleteDocument(
         extractedText,
-        file.originalname
+        file.originalname,
+        { prompt: metadata?.prompt }
       );
 
       // Step 5: Create DocumentSummary record
@@ -347,15 +348,45 @@ export async function deleteDocument(fileId, userId) {
   }
 
   try {
-    // Delete from GridFS
+    // Delete from GridFS (handle already-deleted files gracefully)
     if (rawDocument.gridFsId) {
-      await gridBucket.delete(rawDocument.gridFsId);
-      console.log(`[VectorUpload] Deleted GridFS file ${rawDocument.gridFsId}`);
+      try {
+        await gridBucket.delete(rawDocument.gridFsId);
+        console.log(
+          `[VectorUpload] Deleted GridFS file ${rawDocument.gridFsId}`
+        );
+      } catch (gridErr) {
+        console.warn(
+          `[VectorUpload] GridFS delete skipped for ${rawDocument.gridFsId}: ${gridErr.message}`
+        );
+        // Fall back: attempt deleting any GridFS files by metadata.fileId
+        try {
+          const files = await gridBucket
+            .find({ "metadata.fileId": fileId })
+            .toArray();
+          for (const gridFile of files) {
+            await gridBucket.delete(gridFile._id);
+            console.log(
+              `[VectorUpload] Deleted GridFS file by metadata ${gridFile._id}`
+            );
+          }
+        } catch (fallbackErr) {
+          console.warn(
+            `[VectorUpload] GridFS metadata cleanup skipped: ${fallbackErr.message}`
+          );
+        }
+      }
     }
 
-    // Delete document summary
-    await DocumentSummary.deleteOne({ file_id: fileId });
-    console.log(`[VectorUpload] Deleted document summary for ${fileId}`);
+    // Delete document summary (if exists)
+    const { deletedCount } = await DocumentSummary.deleteOne({
+      file_id: fileId,
+    });
+    if (deletedCount) {
+      console.log(`[VectorUpload] Deleted document summary for ${fileId}`);
+    } else {
+      console.log(`[VectorUpload] No document summary found for ${fileId}`);
+    }
 
     // Delete raw document record
     await RawDocument.deleteOne({ file_id: fileId });

@@ -38,7 +38,11 @@ export async function generateEmbedding(text) {
  * @param {string} filename - Original filename for context
  * @returns {Promise<string>} - Comprehensive summary (5-7 pages for 70-100 page documents)
  */
-export async function generateComprehensiveSummary(content, filename) {
+export async function generateComprehensiveSummary(
+  content,
+  filename,
+  options = {}
+) {
   try {
     if (!config.OPENAI_API_KEY) {
       throw new Error("OpenAI API key not configured");
@@ -80,6 +84,16 @@ export async function generateComprehensiveSummary(content, filename) {
           "\n\n[Content truncated due to length]"
         : content;
 
+    // Build prompt: use custom user prompt if provided; otherwise use backend default
+    const userPrompt =
+      typeof options?.prompt === "string" && options.prompt.trim().length > 0
+        ? options.prompt.trim()
+        : null;
+
+    const baseInstruction = userPrompt
+      ? `Follow the user's custom instructions for what to emphasize in the summary:\n\nCustom instructions: ${userPrompt}\n\nIf the custom instructions conflict with factual accuracy or document content, prioritize factual accuracy.`
+      : `If no special instructions are provided, produce a balanced executive summary emphasizing key ideas, data, decisions, risks, timeline, stakeholders, and action items.`;
+
     const prompt = `You are an expert document summarizer. You will be given a document to carefully read and summarize into a structured summary that is approximately ${targetSummaryPages} pages long (${targetWords} words).
 
 Document: ${filename}
@@ -95,6 +109,8 @@ Rules for summarization:
 6. The final output should be coherent, factually accurate, and easy to navigate.
 7. Treat every paragraph as potentially meaningful—summarize instead of skipping.
 8. Make sure the summary acts as a comprehensive substitute for reading the full document, while strictly avoiding the loss of essential details.
+
+${baseInstruction}
 
 Structure your summary with:
 - Clear headings and subheadings that mirror the original document structure
@@ -118,8 +134,7 @@ Generate a comprehensive summary that maintains the document's essential informa
           content: prompt,
         },
       ],
-      temperature: 0.1,
-      max_tokens: 8000, // Increased for longer summaries
+      max_completion_tokens: 8000, // Increased for longer summaries
     });
 
     const processingTime = Date.now() - startTime;
@@ -154,7 +169,7 @@ Generate a comprehensive summary that maintains the document's essential informa
  * @param {string} filename - Original filename for context
  * @returns {Promise<Object>} - Processed document data
  */
-export async function processDocumentWithAI(content, filename) {
+export async function processDocumentWithAI(content, filename, options = {}) {
   try {
     if (!config.OPENAI_API_KEY) {
       throw new Error("OpenAI API key not configured");
@@ -163,7 +178,11 @@ export async function processDocumentWithAI(content, filename) {
     const startTime = Date.now();
 
     // Generate comprehensive summary first
-    const summaryResult = await generateComprehensiveSummary(content, filename);
+    const summaryResult = await generateComprehensiveSummary(
+      content,
+      filename,
+      { prompt: options?.prompt }
+    );
 
     // Truncate content if too long (GPT-5-mini has a 128k context limit)
     const maxContentLength = 100000; // Leave room for prompt
@@ -209,8 +228,7 @@ Rules:
           content: prompt,
         },
       ],
-      temperature: 0.1,
-      max_tokens: 2000,
+      max_completion_tokens: 2000,
     });
 
     const processingTime = Date.now() - startTime;
@@ -316,10 +334,12 @@ export function createEmbeddingText(processedData) {
  * @param {string} filename - Original filename
  * @returns {Promise<Object>} - Complete processed document data
  */
-export async function processCompleteDocument(content, filename) {
+export async function processCompleteDocument(content, filename, options = {}) {
   try {
     // Step 1: AI analysis
-    const aiAnalysis = await processDocumentWithAI(content, filename);
+    const aiAnalysis = await processDocumentWithAI(content, filename, {
+      prompt: options?.prompt,
+    });
 
     // Step 2: Generate embedding
     const embeddingText = createEmbeddingText(aiAnalysis);
