@@ -58,9 +58,41 @@ interface AvailableTags {
   general_tags: string[];
 }
 
-export default function VectorSearch() {
+export default function VectorSearchWithState() {
   const { session } = useSupabase();
   const { toast } = useToast();
+
+  // Use global state
+  const { vectorSearchState, updateVectorSearch } = useVectorSearchState();
+
+  // Navigation and scroll restoration
+  useNavigationState();
+  useScrollRestoration();
+
+  // Local state for data that doesn't need persistence
+  const [availableTags, setAvailableTags] = useState<AvailableTags>({
+    industries: [],
+    sectors: [],
+    stock_names: [],
+    general_tags: [],
+  });
+  const [activeTab, setActiveTab] = useState<"search" | "upload">("search");
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Destructure global state for easier access
+  const {
+    searchQuery,
+    selectedIndustries,
+    selectedSectors,
+    selectedStockNames,
+    dateFrom,
+    dateTo,
+    minScore,
+    tagSectionVisibility,
+    questionAnswer,
+    searchResults,
+    lastSearchQuery,
+  } = vectorSearchState;
 
   // Global error handler for any unhandled errors
   useEffect(() => {
@@ -94,39 +126,6 @@ export default function VectorSearch() {
     };
   }, [toast]);
 
-  // Search state
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [questionAnswer, setQuestionAnswer] = useState<QuestionAnswer | null>(
-    null
-  );
-  const [isSearching, setIsSearching] = useState(false);
-  const [lastSearchQuery, setLastSearchQuery] = useState("");
-
-  // Filter state
-  const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
-  const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
-  const [selectedStockNames, setSelectedStockNames] = useState<string[]>([]);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [minScore, setMinScore] = useState(0.1);
-
-  // Data state
-  const [availableTags, setAvailableTags] = useState<AvailableTags>({
-    industries: [],
-    sectors: [],
-    stock_names: [],
-    general_tags: [],
-  });
-  const [activeTab, setActiveTab] = useState<"search" | "upload">("search");
-
-  // Tag section visibility state
-  const [tagSectionVisibility, setTagSectionVisibility] = useState({
-    industries: false,
-    sectors: false,
-    companies: false,
-  });
-
   // Load initial data
   useEffect(() => {
     if (session) {
@@ -135,29 +134,18 @@ export default function VectorSearch() {
       } catch (error) {
         console.error("Error loading initial data:", error);
         toast({
-          title: "Loading Error",
-          description: "Failed to load initial data. Please refresh the page.",
+          title: "Error",
+          description: "Failed to load initial data",
           variant: "destructive",
         });
       }
     }
-  }, [session]);
+  }, [session, toast]);
 
   const loadAvailableTags = async () => {
     try {
       const token =
         session?.access_token || localStorage.getItem("sb:token") || "";
-
-      if (!token) {
-        throw new Error("No authentication token available");
-      }
-
-      console.log(
-        "Loading tags with token:",
-        token ? "Token present" : "No token"
-      );
-      console.log("Session:", session ? "Session present" : "No session");
-
       const apiUrl = `${
         import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
       }/vector-search/tags`;
@@ -165,29 +153,24 @@ export default function VectorSearch() {
       const response = await fetch(apiUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
         },
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-
-      if (!data || !data.data) {
-        throw new Error("Invalid response format from server");
+      if (data.success && data.data) {
+        setAvailableTags(data.data);
+      } else {
+        throw new Error("Invalid response from server");
       }
-
-      setAvailableTags(data.data);
     } catch (error) {
-      console.error("Failed to load tags:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
+      console.error("Error loading available tags:", error);
       toast({
-        title: "Loading Error",
-        description: `Failed to load available tags: ${errorMessage}`,
+        title: "Error",
+        description: "Failed to load available tags",
         variant: "destructive",
       });
       // Set empty tags as fallback
@@ -204,7 +187,7 @@ export default function VectorSearch() {
     try {
       if (!searchQuery.trim()) {
         toast({
-          title: "Input Error",
+          title: "Input Required",
           description: "Please enter a question",
           variant: "destructive",
         });
@@ -213,7 +196,7 @@ export default function VectorSearch() {
 
       if (!session) {
         toast({
-          title: "Authentication Error",
+          title: "Authentication Required",
           description: "Please log in to ask questions",
           variant: "destructive",
         });
@@ -222,25 +205,15 @@ export default function VectorSearch() {
 
       console.log(`[VectorSearch Frontend] Asking question: "${searchQuery}"`);
       setIsSearching(true);
-      setLastSearchQuery(searchQuery);
+
+      // Update global state with the search query
+      updateVectorSearch({ lastSearchQuery: searchQuery });
 
       const token =
-        session?.access_token || localStorage.getItem("sb:token") || "";
-
-      if (!token) {
-        throw new Error("No authentication token available");
-      }
-
-      console.log(
-        `[VectorSearch Frontend] Using token:`,
-        token ? "Token present" : "No token"
-      );
-
+        session.access_token || localStorage.getItem("sb:token") || "";
       const apiUrl = `${
         import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
       }/vector-search/ask`;
-
-      console.log(`[VectorSearch Frontend] Making request to: ${apiUrl}`);
 
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -253,33 +226,22 @@ export default function VectorSearch() {
         }),
       });
 
-      console.log(
-        `[VectorSearch Frontend] Response status: ${response.status}`
-      );
-
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error(
-          `[VectorSearch Frontend] HTTP Error ${response.status}:`,
-          errorText
-        );
-        throw new Error(`Server error (${response.status}): ${errorText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server error (${response.status})`);
       }
 
       const responseData = await response.json();
-      console.log(`[VectorSearch Frontend] Response data:`, responseData);
-
-      if (!responseData || typeof responseData !== "object") {
-        throw new Error("Invalid response format from server");
-      }
-
       if (responseData.success) {
-        setQuestionAnswer({
-          question: responseData.question,
-          answer: responseData.answer,
-          sources: responseData.sources || [],
+        // Update global state with the answer
+        updateVectorSearch({
+          questionAnswer: {
+            question: responseData.question,
+            answer: responseData.answer,
+            sources: responseData.sources || [],
+          },
+          searchResults: [], // Clear old search results
         });
-        setSearchResults([]); // Clear old search results
 
         toast({
           title: "Question Answered",
@@ -291,184 +253,12 @@ export default function VectorSearch() {
         throw new Error("Invalid response from server");
       }
     } catch (error) {
-      console.error("[VectorSearch Frontend] Question failed:", error);
-      setQuestionAnswer(null);
-      setSearchResults([]);
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
+      console.error("Error asking question:", error);
       toast({
         title: "Question Error",
-        description: `Failed to answer question: ${errorMessage}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handleSimpleSearch = async () => {
-    try {
-      if (!searchQuery.trim()) {
-        toast({
-          title: "Input Error",
-          description: "Please enter a search query",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!session) {
-        toast({
-          title: "Authentication Error",
-          description: "Please log in to perform searches",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log(
-        `[VectorSearch Frontend] Starting simple search for: "${searchQuery}"`
-      );
-      setIsSearching(true);
-      setLastSearchQuery(searchQuery);
-
-      const token =
-        session?.access_token || localStorage.getItem("sb:token") || "";
-
-      if (!token) {
-        throw new Error("No authentication token available");
-      }
-
-      const apiUrl = `${
-        import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
-      }/vector-search/simple-search`;
-
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          query: searchQuery,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Server error (${response.status}): ${errorText}`);
-      }
-
-      const responseData = await response.json();
-      console.log(
-        `[VectorSearch Frontend] Simple search response:`,
-        responseData
-      );
-
-      if (!responseData || typeof responseData !== "object") {
-        throw new Error("Invalid response format from server");
-      }
-
-      if (responseData.success && responseData.data) {
-        const results = Array.isArray(responseData.data.results)
-          ? responseData.data.results
-          : [];
-        console.log(
-          `[VectorSearch Frontend] Simple search found ${results.length} results`
-        );
-
-        setSearchResults(results);
-        toast({
-          title: "Simple Search Complete",
-          description: `Found ${responseData.data.total_results || 0} results`,
-        });
-      } else {
-        throw new Error("Invalid response format");
-      }
-    } catch (error) {
-      console.error("[VectorSearch Frontend] Simple search failed:", error);
-      setSearchResults([]);
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
-      toast({
-        title: "Simple Search Error",
-        description: `Failed to perform simple search: ${errorMessage}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handleDebugCheck = async () => {
-    try {
-      console.log(`[VectorSearch Frontend] Starting debug check`);
-      setIsSearching(true);
-
-      if (!session) {
-        toast({
-          title: "Authentication Error",
-          description: "Please log in to perform debug check",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const token =
-        session?.access_token || localStorage.getItem("sb:token") || "";
-
-      if (!token) {
-        throw new Error("No authentication token available");
-      }
-
-      const apiUrl = `${
-        import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
-      }/vector-search/debug`;
-
-      const response = await fetch(apiUrl, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Server error (${response.status}): ${errorText}`);
-      }
-
-      const responseData = await response.json();
-      console.log(`[VectorSearch Frontend] Debug response:`, responseData);
-
-      if (!responseData || typeof responseData !== "object") {
-        throw new Error("Invalid response format from server");
-      }
-
-      if (responseData.success && responseData.data) {
-        const stats = responseData.data.database_stats;
-        if (stats && typeof stats === "object") {
-          toast({
-            title: "Debug Check Complete (Global Access)",
-            description: `DB: ${stats.total_raw_docs || 0} raw docs, ${
-              stats.total_summaries || 0
-            } summaries, ${stats.completed_docs || 0} completed, ${
-              stats.completed_with_summaries || 0
-            } with summaries`,
-          });
-        } else {
-          throw new Error("Invalid database stats format");
-        }
-      } else {
-        throw new Error(responseData.error || "Invalid debug response format");
-      }
-    } catch (error) {
-      console.error("[VectorSearch Frontend] Debug check failed:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
-      toast({
-        title: "Debug Check Error",
-        description: `Failed to perform debug check: ${errorMessage}`,
+        description: `Failed to answer question: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
         variant: "destructive",
       });
     } finally {
@@ -480,19 +270,23 @@ export default function VectorSearch() {
   const toggleTagSection = (
     section: "industries" | "sectors" | "companies"
   ) => {
-    setTagSectionVisibility((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
+    updateVectorSearch({
+      tagSectionVisibility: {
+        ...tagSectionVisibility,
+        [section]: !tagSectionVisibility[section],
+      },
+    });
   };
 
   // Toggle all sections
   const toggleAllSections = () => {
     const allExpanded = Object.values(tagSectionVisibility).every(Boolean);
-    setTagSectionVisibility({
-      industries: !allExpanded,
-      sectors: !allExpanded,
-      companies: !allExpanded,
+    updateVectorSearch({
+      tagSectionVisibility: {
+        industries: !allExpanded,
+        sectors: !allExpanded,
+        companies: !allExpanded,
+      },
     });
   };
 
@@ -511,96 +305,85 @@ export default function VectorSearch() {
       }
 
       const setters = {
-        industries: setSelectedIndustries,
-        sectors: setSelectedSectors,
-        stock_names: setSelectedStockNames,
+        industries: (prev: string[]) => {
+          const newIndustries = prev.includes(tag)
+            ? prev.filter((t) => t !== tag)
+            : [...prev, tag];
+          updateVectorSearch({ selectedIndustries: newIndustries });
+          return newIndustries;
+        },
+        sectors: (prev: string[]) => {
+          const newSectors = prev.includes(tag)
+            ? prev.filter((t) => t !== tag)
+            : [...prev, tag];
+          updateVectorSearch({ selectedSectors: newSectors });
+          return newSectors;
+        },
+        stock_names: (prev: string[]) => {
+          const newStockNames = prev.includes(tag)
+            ? prev.filter((t) => t !== tag)
+            : [...prev, tag];
+          updateVectorSearch({ selectedStockNames: newStockNames });
+          return newStockNames;
+        },
       };
 
       const currentValues = {
-        industries: Array.isArray(selectedIndustries) ? selectedIndustries : [],
-        sectors: Array.isArray(selectedSectors) ? selectedSectors : [],
-        stock_names: Array.isArray(selectedStockNames)
-          ? selectedStockNames
-          : [],
+        industries: selectedIndustries,
+        sectors: selectedSectors,
+        stock_names: selectedStockNames,
       };
 
-      const setter = setters[type];
-      const current = currentValues[type];
-
-      if (!setter || !Array.isArray(current)) {
-        toast({
-          title: "State Error",
-          description: "Invalid state configuration",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (current.includes(tag)) {
-        setter(current.filter((t) => t !== tag));
-      } else {
-        setter([...current, tag]);
-      }
+      setters[type](currentValues[type]);
     } catch (error) {
       console.error("Error toggling tag:", error);
       toast({
-        title: "Tag Toggle Error",
-        description: "Failed to toggle tag selection",
+        title: "Error",
+        description: "Failed to toggle tag",
         variant: "destructive",
       });
     }
   };
 
-  const clearFilters = () => {
-    try {
-      setSelectedIndustries([]);
-      setSelectedSectors([]);
-      setSelectedStockNames([]);
-      setDateFrom("");
-      setDateTo("");
-      setMinScore(0.1);
-
-      toast({
-        title: "Filters Cleared",
-        description: "All search filters have been reset",
-      });
-    } catch (error) {
-      console.error("Error clearing filters:", error);
-      toast({
-        title: "Filter Clear Error",
-        description: "Failed to clear filters",
-        variant: "destructive",
-      });
-    }
+  const clearAllFilters = () => {
+    updateVectorSearch({
+      selectedIndustries: [],
+      selectedSectors: [],
+      selectedStockNames: [],
+      dateFrom: "",
+      dateTo: "",
+      minScore: 0.1,
+    });
+    toast({
+      title: "Filters Cleared",
+      description: "All filters have been reset",
+    });
   };
 
-  const formatFileSize = (bytes: number | null | undefined) => {
-    try {
-      if (!bytes || isNaN(bytes) || bytes < 0) {
-        console.warn(`[VectorSearch] Invalid file size: ${bytes}`);
-        return "Unknown size";
-      }
-      if (bytes === 0) return "0 Bytes";
-      const k = 1024;
-      const sizes = ["Bytes", "KB", "MB", "GB"];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-    } catch (error) {
-      console.error("Error formatting file size:", error);
-      return "Unknown size";
-    }
+  const handleSimpleSearch = async () => {
+    // Implementation for simple search
+    toast({
+      title: "Feature Coming Soon",
+      description: "Simple search functionality will be available soon",
+    });
   };
 
-  const formatDate = (dateString: string | Date | null | undefined) => {
-    try {
-      if (!dateString) return "Unknown date";
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
 
+  const formatDate = (dateString: string): string => {
+    try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        console.warn(`[VectorSearch] Invalid date: ${dateString}`);
-        return "Invalid date";
-      }
-      return date.toLocaleDateString();
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
     } catch (error) {
       console.error(
         `[VectorSearch] Date formatting error:`,
@@ -610,8 +393,6 @@ export default function VectorSearch() {
       return "Invalid date";
     }
   };
-
-  // console.log("upload_date raw value:", searchResults[0].raw_doc.upload_date);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#010613] text-gray-900 dark:text-white">
@@ -629,11 +410,6 @@ export default function VectorSearch() {
           value={activeTab}
           onValueChange={(value) => setActiveTab(value as "search" | "upload")}
         >
-          {/* <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="search">Search Documents</TabsTrigger>
-            <TabsTrigger value="upload">Upload New Document</TabsTrigger>
-          </TabsList> */}
-
           <TabsContent value="search" className="space-y-4 sm:space-y-6">
             {/* Search Interface */}
             <Card>
@@ -653,7 +429,9 @@ export default function VectorSearch() {
                     <Input
                       placeholder="Ask a question about your documents..."
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) =>
+                        updateVectorSearch({ searchQuery: e.target.value })
+                      }
                       onKeyPress={(e) =>
                         e.key === "Enter" && handleAskQuestion()
                       }
@@ -673,17 +451,19 @@ export default function VectorSearch() {
                   <div className="flex flex-col sm:flex-row gap-2">
                     <Button
                       onClick={handleSimpleSearch}
-                      disabled={isSearching}
                       variant="outline"
-                      className="w-full sm:w-auto px-4"
+                      size="sm"
+                      className="w-full sm:w-auto"
                     >
                       Simple Search
                     </Button>
                     <Button
-                      onClick={handleDebugCheck}
-                      disabled={isSearching}
+                      onClick={() =>
+                        window.open("/vector-search/debug", "_blank")
+                      }
                       variant="outline"
-                      className="w-full sm:w-auto px-4"
+                      size="sm"
+                      className="w-full sm:w-auto"
                     >
                       Debug
                     </Button>
@@ -717,23 +497,14 @@ export default function VectorSearch() {
                       max="1"
                       step="0.1"
                       value={minScore}
-                      onChange={(e) => setMinScore(parseFloat(e.target.value))}
+                      onChange={(e) =>
+                        updateVectorSearch({
+                          minScore: parseFloat(e.target.value) || 0.1,
+                        })
+                      }
+                      className="w-full"
                     />
                   </div>
-                  {/* <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Date Range (Calendar)
-                    </label>
-                    <DatePicker
-                      startDate={dateFrom}
-                      endDate={dateTo}
-                      onDateChange={(start, end) => {
-                        setDateFrom(start);
-                        setDateTo(end);
-                      }}
-                      placeholder="Select date range"
-                    />
-                  </div> */}
                   <div>
                     <label className="text-sm font-medium mb-2 block">
                       From Date
@@ -741,7 +512,10 @@ export default function VectorSearch() {
                     <Input
                       type="date"
                       value={dateFrom}
-                      onChange={(e) => setDateFrom(e.target.value)}
+                      onChange={(e) =>
+                        updateVectorSearch({ dateFrom: e.target.value })
+                      }
+                      className="w-full"
                     />
                   </div>
                   <div>
@@ -751,16 +525,20 @@ export default function VectorSearch() {
                     <Input
                       type="date"
                       value={dateTo}
-                      onChange={(e) => setDateTo(e.target.value)}
+                      onChange={(e) =>
+                        updateVectorSearch({ dateTo: e.target.value })
+                      }
+                      className="w-full"
                     />
                   </div>
                 </div>
 
                 {/* Clear Filters Button */}
-                <div className="flex justify-center sm:justify-end">
+                <div className="flex justify-end">
                   <Button
+                    onClick={clearAllFilters}
                     variant="outline"
-                    onClick={clearFilters}
+                    size="sm"
                     className="w-full sm:w-auto"
                   >
                     Clear All Filters
@@ -768,12 +546,12 @@ export default function VectorSearch() {
                 </div>
 
                 {/* Tag Filters */}
-                <div className="space-y-3 sm:space-y-4 ">
+                <div className="space-y-3 sm:space-y-4">
                   {/* Expand/Collapse All Button */}
                   {(availableTags.industries.length > 0 ||
                     availableTags.sectors.length > 0 ||
                     availableTags.stock_names.length > 0) && (
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 ">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                       <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
                         Filter by Tags
                       </h3>
@@ -781,7 +559,7 @@ export default function VectorSearch() {
                         variant="outline"
                         size="sm"
                         onClick={toggleAllSections}
-                        className="text-xs w-full sm:w-auto"
+                        className="text-xs w-full sm:w-auto "
                       >
                         {Object.values(tagSectionVisibility).every(Boolean)
                           ? "Collapse All"
@@ -789,6 +567,7 @@ export default function VectorSearch() {
                       </Button>
                     </div>
                   )}
+
                   {/* Industries Section */}
                   {availableTags.industries.length > 0 && (
                     <div className="border rounded-lg mb-4">
@@ -1189,8 +968,8 @@ export default function VectorSearch() {
               </Card>
             )}
 
-            {/* Legacy Search Results (for Simple Search) */}
-            {searchResults && searchResults.length > 0 && (
+            {/* Search Results */}
+            {searchResults.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle>Search Results</CardTitle>
@@ -1210,7 +989,7 @@ export default function VectorSearch() {
                           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
                             <div className="flex-1">
                               <CardTitle className="text-lg">
-                                {result.filename || "Unknown filename"}
+                                {result.filename}
                               </CardTitle>
                               <CardDescription>
                                 {formatFileSize(result.file_size)} • Uploaded{" "}
@@ -1234,9 +1013,33 @@ export default function VectorSearch() {
                           </div>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-sm mb-3">
-                            {result.summary_text || "No summary available"}
-                          </p>
+                          <p className="text-sm mb-3">{result.summary_text}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {result.extracted_tags.industries.map((tag) => (
+                              <span
+                                key={tag}
+                                className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {result.extracted_tags.sectors.map((tag) => (
+                              <span
+                                key={tag}
+                                className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded-full"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {result.extracted_tags.stock_names.map((tag) => (
+                              <span
+                                key={tag}
+                                className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded-full"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
                         </CardContent>
                       </Card>
                     ))}
@@ -1246,63 +1049,8 @@ export default function VectorSearch() {
             )}
           </TabsContent>
 
-          <TabsContent value="upload">
-            <Card>
-              <CardHeader>
-                <CardTitle>Upload Document for Vector Search</CardTitle>
-                <CardDescription>
-                  Upload a new document to be processed with AI summarization
-                  and vector search (Available to all users)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <VectorFileUploader
-                  onUploadSuccess={() => {
-                    try {
-                      // Refresh available tags after successful upload
-                      loadAvailableTags();
-                      toast({
-                        title: "Upload Complete",
-                        description:
-                          "Document has been processed and is now searchable",
-                      });
-                    } catch (error) {
-                      console.error("Error in upload success callback:", error);
-                      toast({
-                        title: "Upload Complete",
-                        description:
-                          "Document uploaded but failed to refresh data",
-                        variant: "destructive",
-                      });
-                    }
-                  }}
-                  onUploadError={(error) => {
-                    try {
-                      console.error("Upload failed:", error);
-                      const errorMessage =
-                        error && typeof error === "object" && "message" in error
-                          ? (error as Error).message
-                          : "Unknown upload error";
-                      toast({
-                        title: "Upload Failed",
-                        description: `Failed to upload document: ${errorMessage}`,
-                        variant: "destructive",
-                      });
-                    } catch (callbackError) {
-                      console.error(
-                        "Error in upload error callback:",
-                        callbackError
-                      );
-                      toast({
-                        title: "Upload Failed",
-                        description: "Failed to upload document",
-                        variant: "destructive",
-                      });
-                    }
-                  }}
-                />
-              </CardContent>
-            </Card>
+          <TabsContent value="upload" className="space-y-6">
+            <VectorFileUploader onUploadSuccess={loadAvailableTags} />
           </TabsContent>
         </Tabs>
       </div>

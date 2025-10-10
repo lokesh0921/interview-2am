@@ -8,12 +8,12 @@ import Upload from "./pages/Upload";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import Summary from "./pages/Summary";
-import VectorSearch from "./pages/VectorSearch";
+import VectorSearchWithState from "./pages/VectorSearchWithState";
 import { SupabaseProvider } from "./supabase/SupabaseProvider";
 import Protected from "./supabase/Protected";
 import { Toaster } from "@/components/ui/toaster";
-import Header from "./components/Header";
 import Signup from "./pages/Signup";
+import { AppStateProvider } from "./contexts/AppStateContext";
 // import Auth from "./pages/Auth";
 
 const router = createBrowserRouter([
@@ -37,7 +37,7 @@ const router = createBrowserRouter([
     path: "/vector-search",
     element: (
       <Protected>
-        <VectorSearch />
+        <VectorSearchWithState />
       </Protected>
     ),
   },
@@ -72,8 +72,10 @@ const router = createBrowserRouter([
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <SupabaseProvider>
-      <RouterProvider router={router} />
-      <Toaster />
+      <AppStateProvider>
+        <RouterProvider router={router} />
+        <Toaster />
+      </AppStateProvider>
     </SupabaseProvider>
   </React.StrictMode>
 );

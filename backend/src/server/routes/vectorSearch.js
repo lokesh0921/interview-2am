@@ -97,25 +97,39 @@ router.post("/ask", authMiddleware.required, async (req, res) => {
     // Step 1: Find relevant documents using semantic search
     console.log(`[VectorSearch API] Finding relevant documents...`);
     const searchResults = await semanticSearch(question, userId, {
-      limit: 5, // Get top 5 most relevant documents
-      minScore: 0.1,
+      limit: 5, // Reduced from 10 to prevent token overflow
+      minScore: 0.5, // Higher minimum score for better relevance
       includeMetadata: true,
     });
 
-    if (searchResults.results.length === 0) {
-      console.log(`[VectorSearch API] No relevant documents found`);
+    // Filter to only include truly relevant documents (score > 0.6)
+    const relevantResults = searchResults.results.filter(
+      (doc) => doc.similarity_score > 0.6
+    );
+
+    // Limit to maximum 2 documents to prevent token overflow
+    const finalResults = relevantResults.slice(0, 2);
+
+    console.log(
+      `[VectorSearch API] Found ${searchResults.results.length} total documents, ${relevantResults.length} relevant (score > 0.6), using ${finalResults.length} for answer`
+    );
+
+    if (finalResults.length === 0) {
+      console.log(
+        `[VectorSearch API] No relevant documents found (all scores below 0.6)`
+      );
       return res.json({
         success: true,
         question,
         answer:
-          "No relevant documents found to answer this question. Please upload some documents first.",
+          "No relevant documents found to answer this question. The available documents don't contain information related to your query.",
         sources: [],
       });
     }
 
     // Step 2: Extract relevant content from top documents
     // Use both summary and raw content for comprehensive answers
-    const relevantContent = searchResults.results.map((doc) => {
+    const relevantContent = finalResults.map((doc) => {
       // Get raw content from the database
       const RawDocument = getRawDocumentModel();
       return RawDocument.findOne({ file_id: doc.file_id })
@@ -123,13 +137,33 @@ router.post("/ask", authMiddleware.required, async (req, res) => {
           const rawContent = rawDoc?.raw_content || "Raw content not available";
           const summaryContent = doc.summary_text || "Summary not available";
 
+          // Truncate content to prevent token overflow
+          const maxSummaryLength = 8000; // 8k chars for summary
+          const maxRawLength = 15000; // 15k chars for raw content
+
+          const truncatedSummary =
+            summaryContent.length > maxSummaryLength
+              ? summaryContent.substring(0, maxSummaryLength) + "..."
+              : summaryContent;
+
+          const truncatedRaw =
+            rawContent.length > maxRawLength
+              ? rawContent.substring(0, maxRawLength) + "..."
+              : rawContent;
+
           return `Document: ${doc.filename}
-Summary: ${summaryContent}
-Raw Content: ${rawContent}`;
+Summary: ${truncatedSummary}
+Raw Content: ${truncatedRaw}`;
         })
         .catch(() => {
           // Fallback to summary only if raw content fetch fails
-          return `Document: ${doc.filename}\nContent: ${doc.summary_text}`;
+          const summaryContent = doc.summary_text || "Summary not available";
+          const truncatedSummary =
+            summaryContent.length > 10000
+              ? summaryContent.substring(0, 10000) + "..."
+              : summaryContent;
+
+          return `Document: ${doc.filename}\nContent: ${truncatedSummary}`;
         });
     });
 
@@ -147,7 +181,7 @@ Raw Content: ${rawContent}`;
       success: true,
       question,
       answer,
-      sources: searchResults.results.map((doc) => ({
+      sources: finalResults.map((doc) => ({
         file_id: doc.file_id,
         filename: doc.filename,
         similarity_score: doc.similarity_score,
@@ -748,5 +782,126 @@ router.post(
     }
   }
 );
+
+// Search summaries by tags and keywords
+router.get("/search-summaries", authMiddleware.required, async (req, res) => {
+  try {
+    const { q, page = 1, limit = 20, type } = req.query;
+    const userId = req.user.sub;
+
+    console.log(`[VectorSearch] Searching summaries with query: "${q}"`);
+
+    if (!q || q.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Search query is required",
+      });
+    }
+
+    const DocumentSummary = getDocumentSummaryModel();
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Build search filter
+    let filter = {};
+
+    // Add text search for summary content and tags
+    if (type === "text") {
+      // Full-text search across summary and tags
+      filter.$text = { $search: q };
+    } else {
+      // Tag-based search
+      const searchRegex = new RegExp(q.trim(), "i");
+      filter.$or = [
+        { "extracted_tags.industries": searchRegex },
+        { "extracted_tags.sectors": searchRegex },
+        { "extracted_tags.stock_names": searchRegex },
+        { "extracted_tags.general_tags": searchRegex },
+        { summary_text: searchRegex },
+      ];
+    }
+
+    // Execute search with pagination
+    const [summaries, total] = await Promise.all([
+      DocumentSummary.find(filter)
+        .sort(
+          type === "text"
+            ? { score: { $meta: "textScore" } }
+            : { summary_date: -1 }
+        )
+        .skip(skip)
+        .limit(Number(limit))
+        .lean(),
+      DocumentSummary.countDocuments(filter),
+    ]);
+
+    // Get file metadata for each summary
+    const summariesWithMetadata = await Promise.all(
+      summaries.map(async (summary) => {
+        try {
+          // Get file metadata from RawDocument
+          const RawDocument = getRawDocumentModel();
+          const rawDoc = await RawDocument.findOne({
+            file_id: summary.file_id,
+          }).lean();
+
+          return {
+            _id: summary._id,
+            file_id: summary.file_id,
+            filename: rawDoc?.filename || "Unknown file",
+            summary_text: summary.summary_text,
+            comprehensive_summary: summary.comprehensive_summary,
+            extracted_tags: summary.extracted_tags,
+            reference_date: summary.reference_date,
+            summary_date: summary.summary_date,
+            file_size: rawDoc?.file_size || 0,
+            mime_type: rawDoc?.mime_type || "unknown",
+            upload_date: rawDoc?.upload_date || summary.summary_date,
+            // Include text score for relevance ranking
+            ...(type === "text" && { score: summary.score }),
+          };
+        } catch (error) {
+          console.error(
+            `Error fetching metadata for file ${summary.file_id}:`,
+            error
+          );
+          return {
+            _id: summary._id,
+            file_id: summary.file_id,
+            filename: "Unknown file",
+            summary_text: summary.summary_text,
+            comprehensive_summary: summary.comprehensive_summary,
+            extracted_tags: summary.extracted_tags,
+            reference_date: summary.reference_date,
+            summary_date: summary.summary_date,
+            file_size: 0,
+            mime_type: "unknown",
+            upload_date: summary.summary_date,
+            ...(type === "text" && { score: summary.score }),
+          };
+        }
+      })
+    );
+
+    console.log(`[VectorSearch] Found ${total} summaries matching "${q}"`);
+
+    res.json({
+      success: true,
+      items: summariesWithMetadata,
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      hasMore: skip + Number(limit) < total,
+      totalPages: Math.ceil(total / Number(limit)),
+      query: q,
+      searchType: type || "tags",
+    });
+  } catch (error) {
+    console.error(`[VectorSearch] Search error:`, error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to search summaries",
+    });
+  }
+});
 
 export default router;

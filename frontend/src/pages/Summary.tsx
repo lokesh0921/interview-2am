@@ -5,7 +5,16 @@ import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import { SummaryItemSkeleton } from "../components/ui/skeleton";
 import { toast } from "../hooks/use-toast";
 import ConfirmationDialog from "../components/ui/confirmation-dialog";
-import { Trash2 } from "lucide-react";
+import { Trash2, Search, X } from "lucide-react";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 
 interface FileItem {
   _id: string;
@@ -16,6 +25,26 @@ interface FileItem {
   text?: string;
   metadata?: Record<string, any>;
   created_at: string;
+}
+
+interface SearchResult {
+  _id: string;
+  file_id: string;
+  filename: string;
+  summary_text: string;
+  comprehensive_summary?: string;
+  extracted_tags: {
+    industries: string[];
+    sectors: string[];
+    stock_names: string[];
+    general_tags: string[];
+  };
+  reference_date?: string;
+  summary_date: string;
+  file_size: number;
+  mime_type: string;
+  upload_date: string;
+  score?: number;
 }
 
 interface ApiResponse {
@@ -41,6 +70,81 @@ export default function Summary() {
     item: FileItem | null;
   }>({ isOpen: false, item: null });
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Search functionality
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchHasMore, setSearchHasMore] = useState(true);
+  const [searchTotal, setSearchTotal] = useState(0);
+  const [searchType, setSearchType] = useState<"tags" | "text">("tags");
+
+  // Search function
+  const handleSearch = useCallback(
+    async (query: string, page: number = 1, isInitial = false) => {
+      if (!query.trim()) {
+        setSearchMode(false);
+        setSearchResults([]);
+        return;
+      }
+
+      try {
+        if (isInitial) {
+          setIsSearching(true);
+          setSearchPage(1);
+          setSearchResults([]);
+        }
+
+        const token = import.meta.env.DEV ? "dev-test-token" : undefined;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        const response = await apiFetch(
+          `/vector-search/search-summaries?q=${encodeURIComponent(
+            query
+          )}&page=${page}&limit=20&type=${searchType}`,
+          { headers: headers as Record<string, string> }
+        );
+
+        if (response.success) {
+          const newResults = response.items || [];
+
+          if (isInitial) {
+            setSearchResults(newResults);
+          } else {
+            setSearchResults((prev) => [...prev, ...newResults]);
+          }
+
+          setSearchTotal(response.total || 0);
+          setSearchHasMore(response.hasMore || false);
+          setSearchPage(page);
+          setSearchMode(true);
+        } else {
+          throw new Error(response.error || "Search failed");
+        }
+      } catch (error) {
+        console.error("Search error:", error);
+        toast({
+          title: "Search Error",
+          description: "Failed to search summaries. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [searchType, toast]
+  );
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearchMode(false);
+    setSearchPage(1);
+    setSearchHasMore(true);
+    setSearchTotal(0);
+  };
 
   const loadItems = useCallback(async (page: number, isInitial = false) => {
     try {
@@ -107,23 +211,40 @@ export default function Summary() {
   }, []);
 
   const fetchMoreItems = useCallback(async () => {
-    console.log(
-      "[Summary] fetchMoreItems called - hasMore:",
-      hasMore,
-      "currentPage:",
-      currentPage
-    );
-    if (!hasMore) {
-      console.log("[Summary] No more items to fetch, returning early");
-      return;
+    if (searchMode) {
+      // Handle search results pagination
+      if (!searchHasMore || isSearching) return;
+      await handleSearch(searchQuery, searchPage + 1, false);
+    } else {
+      // Handle regular items pagination
+      console.log(
+        "[Summary] fetchMoreItems called - hasMore:",
+        hasMore,
+        "currentPage:",
+        currentPage
+      );
+      if (!hasMore) {
+        console.log("[Summary] No more items to fetch, returning early");
+        return;
+      }
+      console.log("[Summary] Fetching page:", currentPage + 1);
+      await loadItems(currentPage + 1, false);
     }
-    console.log("[Summary] Fetching page:", currentPage + 1);
-    await loadItems(currentPage + 1, false);
-  }, [currentPage, hasMore, loadItems]);
+  }, [
+    currentPage,
+    hasMore,
+    loadItems,
+    searchMode,
+    searchHasMore,
+    isSearching,
+    handleSearch,
+    searchQuery,
+    searchPage,
+  ]);
 
   const { isFetching = false, lastElementRef } = useInfiniteScroll(
     fetchMoreItems,
-    hasMore,
+    searchMode ? searchHasMore : hasMore,
     { rootMargin: "200px" }
   );
 
@@ -225,7 +346,7 @@ export default function Summary() {
               users (Global Access).
             </p>
           </div>
-          {totalItems > 0 && (
+          {!searchMode && totalItems > 0 && (
             <div className="text-sm text-gray-500 dark:text-gray-400">
               Showing {items.length} of {totalItems} documents
               <div className="text-xs mt-1">
@@ -244,7 +365,88 @@ export default function Summary() {
               </button>
             </div>
           )}
+          {searchMode && searchTotal > 0 && (
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              Found {searchTotal} results for "{searchQuery}"
+            </div>
+          )}
         </div>
+
+        {/* Search Section */}
+        <Card className="mb-6">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">Search Summaries</CardTitle>
+            <CardDescription>
+              Search through summaries using tags, keywords, or full-text search
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <Input
+                  placeholder="Search by tags, keywords, or content..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearch(searchQuery, 1, true);
+                    }
+                  }}
+                  className="w-full"
+                />
+              </div>
+              <div className="flex gap-2">
+                <select
+                  value={searchType}
+                  onChange={(e) =>
+                    setSearchType(e.target.value as "tags" | "text")
+                  }
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                >
+                  <option value="tags">Tag Search</option>
+                  <option value="text">Full Text</option>
+                </select>
+                <Button
+                  onClick={() => handleSearch(searchQuery, 1, true)}
+                  disabled={!searchQuery.trim() || isSearching}
+                  className="px-4"
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  {isSearching ? "Searching..." : "Search"}
+                </Button>
+                {searchMode && (
+                  <Button
+                    onClick={clearSearch}
+                    variant="outline"
+                    className="px-4"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Search Tips */}
+            <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+              <strong>Search Tips:</strong>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                <li>
+                  <strong>Tag Search:</strong> Search by industries, sectors,
+                  company names, or general tags
+                </li>
+                <li>
+                  <strong>Full Text:</strong> Search through summary content
+                  using MongoDB text search
+                </li>
+                <li>
+                  Examples: "Technology", "Apple Inc", "financial results",
+                  "market analysis"
+                </li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {error && (
@@ -275,7 +477,7 @@ export default function Summary() {
         </div>
       )}
 
-      {loading ? (
+      {loading || isSearching ? (
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 gap-6">
             {[...Array(3)].map((_, index) => (
@@ -283,6 +485,146 @@ export default function Summary() {
             ))}
           </div>
         </div>
+      ) : searchMode ? (
+        // Search Results
+        searchResults.length === 0 ? (
+          <div className="text-center py-8 sm:py-12">
+            <Search className="h-12 w-12 sm:h-16 sm:w-16 mx-auto text-gray-400" />
+            <h3 className="mt-3 sm:mt-4 text-base sm:text-lg font-medium text-gray-900 dark:text-white">
+              No results found
+            </h3>
+            <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+              Try different keywords or search terms.
+            </p>
+          </div>
+        ) : (
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <div className="grid grid-cols-1 gap-6">
+              {searchResults.map((result, index) => {
+                const isLastElement = index === searchResults.length - 1;
+                return (
+                  <div
+                    key={result._id}
+                    ref={isLastElement ? lastElementRef : null}
+                    className={`bg-white dark:bg-gray-900 rounded-xl shadow-md p-4 overflow-hidden ${
+                      isLastElement
+                        ? "ring-2 ring-blue-500 ring-opacity-50"
+                        : ""
+                    }`}
+                  >
+                    {/* Search Result Header */}
+                    <div className="flex items-center gap-3 mb-4 pb-3 border-b dark:border-gray-700">
+                      <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
+                        <svg
+                          className="h-5 w-5 text-red-500"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">
+                          {result.filename}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {new Date(result.upload_date).toLocaleDateString()}
+                          </span>
+                          {result.score && (
+                            <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full">
+                              Score: {result.score.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tags */}
+                    {result.extracted_tags && (
+                      <div className="mb-4">
+                        <div className="flex flex-wrap gap-2">
+                          {result.extracted_tags.industries?.map((tag, idx) => (
+                            <span
+                              key={idx}
+                              className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          {result.extracted_tags.sectors?.map((tag, idx) => (
+                            <span
+                              key={idx}
+                              className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded-full"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          {result.extracted_tags.stock_names?.map(
+                            (tag, idx) => (
+                              <span
+                                key={idx}
+                                className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded-full"
+                              >
+                                {tag}
+                              </span>
+                            )
+                          )}
+                          {result.extracted_tags.general_tags?.map(
+                            (tag, idx) => (
+                              <span
+                                key={idx}
+                                className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-2 py-1 rounded-full"
+                              >
+                                {tag}
+                              </span>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Summary Content */}
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                        Summary:
+                      </h4>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                        {result.summary_text}
+                      </p>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => copyToClipboard(result.summary_text)}
+                        className="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        Copy Summary
+                      </button>
+                      {result.comprehensive_summary && (
+                        <button
+                          onClick={() =>
+                            copyToClipboard(result.comprehensive_summary || "")
+                          }
+                          className="px-3 py-1.5 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600 transition-colors"
+                        >
+                          Copy Full Summary
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )
       ) : items.length === 0 && !error ? (
         <div className="text-center py-8 sm:py-12">
           <svg
@@ -391,14 +733,14 @@ export default function Summary() {
                             key={idx}
                             className={`px-2 py-0.5 bg-slate-100 dark:bg-gray-500 text-gray-950 dark:text-gray-950 rounded-full text-xs font-medium ${
                               category === "Auto"
-                                ? "bg-red-100 text-red-800"
+                                ? "bg-red-100 text-red-800 dark:text-red-900"
                                 : category === "IT"
-                                ? "bg-blue-100 text-blue-800"
+                                ? "bg-blue-100 text-blue-800 dark:text-blue-900"
                                 : category === "Pharma"
-                                ? "bg-green-100 text-green-800"
+                                ? "bg-green-100 text-green-800 dark:text-green-900"
                                 : category === "Economics"
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-purple-100 text-purple-800"
+                                ? "bg-yellow-100 text-yellow-800 dark:text-yellow-900"
+                                : "bg-purple-100 text-purple-800 dark:text-purple-900"
                             }`}
                           >
                             {category}
