@@ -31,14 +31,18 @@ interface SearchResult {
   mime_type: string;
 }
 
-interface SearchResponse {
-  success: boolean;
-  data: {
-    query: string;
-    results: SearchResult[];
-    total_results: number;
-    search_options: any;
-  };
+interface QuestionAnswer {
+  question: string;
+  answer: string;
+  sources: {
+    file_id: string;
+    filename: string;
+    similarity_score: number;
+    summary: string;
+    upload_date: string;
+    file_size: number;
+    mime_type: string;
+  }[];
 }
 
 interface AvailableTags {
@@ -46,12 +50,6 @@ interface AvailableTags {
   sectors: string[];
   stock_names: string[];
   general_tags: string[];
-}
-
-interface DocumentStats {
-  total_documents: number;
-  processed_documents: number;
-  processing_status: Record<string, number>;
 }
 
 export default function VectorSearch() {
@@ -93,6 +91,9 @@ export default function VectorSearch() {
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [questionAnswer, setQuestionAnswer] = useState<QuestionAnswer | null>(
+    null
+  );
   const [isSearching, setIsSearching] = useState(false);
   const [lastSearchQuery, setLastSearchQuery] = useState("");
 
@@ -111,9 +112,6 @@ export default function VectorSearch() {
     stock_names: [],
     general_tags: [],
   });
-  const [documentStats, setDocumentStats] = useState<DocumentStats | null>(
-    null
-  );
   const [activeTab, setActiveTab] = useState<"search" | "upload">("search");
 
   // Load initial data
@@ -121,7 +119,6 @@ export default function VectorSearch() {
     if (session) {
       try {
         loadAvailableTags();
-        loadDocumentStats();
       } catch (error) {
         console.error("Error loading initial data:", error);
         toast({
@@ -190,62 +187,12 @@ export default function VectorSearch() {
     }
   };
 
-  const loadDocumentStats = async () => {
-    try {
-      const token =
-        session?.access_token || localStorage.getItem("sb:token") || "";
-
-      if (!token) {
-        throw new Error("No authentication token available");
-      }
-
-      const apiUrl = `${
-        import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
-      }/vector-search/stats`;
-
-      const response = await fetch(apiUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      const data = await response.json();
-
-      if (!data || !data.data) {
-        throw new Error("Invalid response format from server");
-      }
-
-      setDocumentStats(data.data);
-    } catch (error) {
-      console.error("Failed to load stats:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
-      toast({
-        title: "Loading Error",
-        description: `Failed to load document statistics: ${errorMessage}`,
-        variant: "destructive",
-      });
-      // Set fallback stats
-      setDocumentStats({
-        total_documents: 0,
-        processed_documents: 0,
-        processing_status: {},
-      });
-    }
-  };
-
-  const handleSearch = async () => {
+  const handleAskQuestion = async () => {
     try {
       if (!searchQuery.trim()) {
         toast({
           title: "Input Error",
-          description: "Please enter a search query",
+          description: "Please enter a question",
           variant: "destructive",
         });
         return;
@@ -254,30 +201,15 @@ export default function VectorSearch() {
       if (!session) {
         toast({
           title: "Authentication Error",
-          description: "Please log in to perform searches",
+          description: "Please log in to ask questions",
           variant: "destructive",
         });
         return;
       }
 
-      console.log(
-        `[VectorSearch Frontend] Starting search for: "${searchQuery}"`
-      );
+      console.log(`[VectorSearch Frontend] Asking question: "${searchQuery}"`);
       setIsSearching(true);
       setLastSearchQuery(searchQuery);
-
-      const searchOptions = {
-        limit: 20,
-        minScore: isNaN(minScore) ? 0.1 : minScore,
-        industries: Array.isArray(selectedIndustries) ? selectedIndustries : [],
-        sectors: Array.isArray(selectedSectors) ? selectedSectors : [],
-        stockNames: Array.isArray(selectedStockNames) ? selectedStockNames : [],
-        dateFrom: dateFrom || null,
-        dateTo: dateTo || null,
-        includeMetadata: true,
-      };
-
-      console.log(`[VectorSearch Frontend] Search options:`, searchOptions);
 
       const token =
         session?.access_token || localStorage.getItem("sb:token") || "";
@@ -293,7 +225,7 @@ export default function VectorSearch() {
 
       const apiUrl = `${
         import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
-      }/vector-search/search`;
+      }/vector-search/ask`;
 
       console.log(`[VectorSearch Frontend] Making request to: ${apiUrl}`);
 
@@ -304,8 +236,7 @@ export default function VectorSearch() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          query: searchQuery,
-          options: searchOptions,
+          question: searchQuery,
         }),
       });
 
@@ -322,38 +253,39 @@ export default function VectorSearch() {
         throw new Error(`Server error (${response.status}): ${errorText}`);
       }
 
-      const responseData: SearchResponse = await response.json();
+      const responseData = await response.json();
       console.log(`[VectorSearch Frontend] Response data:`, responseData);
 
       if (!responseData || typeof responseData !== "object") {
         throw new Error("Invalid response format from server");
       }
 
-      if (responseData.success && responseData.data) {
-        const results = Array.isArray(responseData.data.results)
-          ? responseData.data.results
-          : [];
-        console.log(
-          `[VectorSearch Frontend] Set ${results.length} search results`
-        );
-
-        setSearchResults(results);
+      if (responseData.success) {
+        setQuestionAnswer({
+          question: responseData.question,
+          answer: responseData.answer,
+          sources: responseData.sources || [],
+        });
+        setSearchResults([]); // Clear old search results
 
         toast({
-          title: "Search Complete",
-          description: `Found ${responseData.data.total_results || 0} results`,
+          title: "Question Answered",
+          description: `Answer generated based on ${
+            responseData.sources?.length || 0
+          } document(s)`,
         });
       } else {
         throw new Error("Invalid response from server");
       }
     } catch (error) {
-      console.error("[VectorSearch Frontend] Search failed:", error);
-      setSearchResults([]); // Ensure searchResults is always an array
+      console.error("[VectorSearch Frontend] Question failed:", error);
+      setQuestionAnswer(null);
+      setSearchResults([]);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
       toast({
-        title: "Search Error",
-        description: `Failed to perform search: ${errorMessage}`,
+        title: "Question Error",
+        description: `Failed to answer question: ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
@@ -653,10 +585,10 @@ export default function VectorSearch() {
       <Header />
       <div className="container mx-auto px-4 sm:p-6 max-w-7xl pt-24 sm:pt-28">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Vector Search</h1>
+          <h1 className="text-3xl font-bold mb-2">Document Q&A</h1>
           <p className="text-gray-600 dark:text-white">
-            Semantic search across all documents with AI-powered summarization
-            and tagging (Global Access)
+            Ask questions about your documents and get AI-powered answers with
+            source references
           </p>
         </div>
 
@@ -673,29 +605,31 @@ export default function VectorSearch() {
             {/* Search Interface */}
             <Card>
               <CardHeader>
-                <CardTitle>Semantic Search</CardTitle>
+                <CardTitle>Ask Questions About Your Documents</CardTitle>
                 <CardDescription>
-                  Search all documents using natural language queries (Global
-                  Access)
+                  Ask specific questions and get AI-powered answers based on
+                  your uploaded documents
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Search Input - Mobile Responsive */}
+                {/* Question Input - Mobile Responsive */}
                 <div className="space-y-3 sm:space-y-0">
                   <div className="flex flex-col mb-4 sm:flex-row gap-2">
                     <Input
-                      placeholder="Enter your search query..."
+                      placeholder="Ask a question about your documents..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                      onKeyPress={(e) =>
+                        e.key === "Enter" && handleAskQuestion()
+                      }
                       className="flex-1 w-full sm:w-auto"
                     />
                     <Button
-                      onClick={handleSearch}
+                      onClick={handleAskQuestion}
                       disabled={isSearching}
                       className="w-full sm:w-auto px-8"
                     >
-                      {isSearching ? "Searching..." : "Search"}
+                      {isSearching ? "Thinking..." : "Ask Question"}
                     </Button>
                   </div>
 
@@ -717,6 +651,21 @@ export default function VectorSearch() {
                     >
                       Debug
                     </Button>
+                  </div>
+                </div>
+
+                {/* Example Questions */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">
+                    Example Questions:
+                  </h4>
+                  <div className="space-y-1 text-sm text-blue-800 dark:text-blue-200">
+                    <p>
+                      • "What are the main business segments of this company?"
+                    </p>
+                    <p>• "What is the current market capitalization?"</p>
+                    <p>• "What are the key risk factors mentioned?"</p>
+                    <p>• "What is the revenue growth rate?"</p>
                   </div>
                 </div>
 
@@ -866,151 +815,245 @@ export default function VectorSearch() {
               </CardContent>
             </Card>
 
-            {/* Search Results */}
-            {lastSearchQuery && (
+            {/* Question Answer Results */}
+            {questionAnswer && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Answer</CardTitle>
+                  <CardDescription>
+                    Question: "{questionAnswer.question}"
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Answer */}
+                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border-l-4 border-l-green-500">
+                      <h4 className="font-medium mb-2 text-green-900 dark:text-green-100">
+                        Answer:
+                      </h4>
+                      <p className="text-green-800 dark:text-green-200 whitespace-pre-wrap">
+                        {questionAnswer.answer}
+                      </p>
+                    </div>
+
+                    {/* Sources */}
+                    {questionAnswer.sources &&
+                      questionAnswer.sources.length > 0 && (
+                        <div>
+                          <h4 className="font-medium mb-3">
+                            Sources ({questionAnswer.sources.length}{" "}
+                            document(s)):
+                          </h4>
+                          <div className="space-y-3">
+                            {questionAnswer.sources.map((source, index) => (
+                              <Card
+                                key={index}
+                                className="border-l-4 border-l-blue-500"
+                              >
+                                <CardHeader className="pb-3">
+                                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                                    <div className="flex-1">
+                                      <CardTitle className="text-lg">
+                                        {source.filename || "Unknown filename"}
+                                      </CardTitle>
+                                      <CardDescription>
+                                        {formatFileSize(source.file_size)} •
+                                        Uploaded{" "}
+                                        {formatDate(source.upload_date)}
+                                      </CardDescription>
+                                    </div>
+                                    <div className="text-left sm:text-right">
+                                      <div className="text-sm font-medium">
+                                        {(
+                                          source.similarity_score * 100
+                                        ).toFixed(1)}
+                                        % match
+                                      </div>
+                                    </div>
+                                  </div>
+                                </CardHeader>
+                                <CardContent>
+                                  <p className="text-sm mb-3">
+                                    {source.summary}
+                                  </p>
+
+                                  <div className="flex flex-col sm:flex-row gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="w-full sm:w-auto"
+                                      onClick={async () => {
+                                        try {
+                                          const token =
+                                            session?.access_token ||
+                                            localStorage.getItem("sb:token") ||
+                                            "";
+                                          const apiUrl = `${
+                                            import.meta.env.VITE_API_BASE ||
+                                            "http://localhost:4001/api"
+                                          }/vector-search/documents/${
+                                            source.file_id
+                                          }/download`;
+
+                                          const response = await fetch(apiUrl, {
+                                            headers: {
+                                              Authorization: `Bearer ${token}`,
+                                            },
+                                          });
+
+                                          if (response.ok) {
+                                            const blob = await response.blob();
+                                            const url =
+                                              window.URL.createObjectURL(blob);
+                                            const a =
+                                              document.createElement("a");
+                                            a.href = url;
+                                            a.download = source.filename;
+                                            document.body.appendChild(a);
+                                            a.click();
+                                            window.URL.revokeObjectURL(url);
+                                            document.body.removeChild(a);
+
+                                            toast({
+                                              title: "Download Started",
+                                              description: `Downloading ${source.filename}`,
+                                            });
+                                          } else {
+                                            throw new Error("Download failed");
+                                          }
+                                        } catch (error) {
+                                          console.error(
+                                            "Error downloading file:",
+                                            error
+                                          );
+                                          toast({
+                                            title: "Download Failed",
+                                            description:
+                                              "Failed to download the file",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      Download File
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="w-full sm:w-auto"
+                                      onClick={async () => {
+                                        try {
+                                          const summaryText = source.summary;
+
+                                          if (
+                                            navigator.clipboard &&
+                                            navigator.clipboard.writeText
+                                          ) {
+                                            await navigator.clipboard.writeText(
+                                              summaryText
+                                            );
+                                            toast({
+                                              title: "Summary Copied",
+                                              description:
+                                                "Summary has been copied to clipboard",
+                                            });
+                                          } else {
+                                            const textArea =
+                                              document.createElement(
+                                                "textarea"
+                                              );
+                                            textArea.value = summaryText;
+                                            document.body.appendChild(textArea);
+                                            textArea.select();
+                                            document.execCommand("copy");
+                                            document.body.removeChild(textArea);
+
+                                            toast({
+                                              title: "Summary Copied",
+                                              description:
+                                                "Summary has been copied to clipboard (fallback method)",
+                                            });
+                                          }
+                                        } catch (error) {
+                                          console.error(
+                                            "Error copying summary:",
+                                            error
+                                          );
+                                          toast({
+                                            title: "Copy Failed",
+                                            description:
+                                              "Failed to copy summary to clipboard",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      Copy Summary
+                                    </Button>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Legacy Search Results (for Simple Search) */}
+            {searchResults && searchResults.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle>Search Results</CardTitle>
                   <CardDescription>
-                    Results for: "{lastSearchQuery}" (
-                    {searchResults?.length || 0} found)
+                    Results for: "{lastSearchQuery}" ({searchResults.length}{" "}
+                    found)
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {!searchResults || searchResults.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">
-                      No results found. Try adjusting your search query or
-                      filters.
-                    </p>
-                  ) : (
-                    <div className="space-y-4">
-                      {searchResults.map((result) => (
-                        <Card
-                          key={result.file_id}
-                          className="border-l-4 border-l-blue-500"
-                        >
-                          <CardHeader className="pb-3">
-                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                              <div className="flex-1">
-                                <CardTitle className="text-lg">
-                                  {result.filename || "Unknown filename"}
-                                </CardTitle>
-                                <CardDescription>
-                                  {formatFileSize(result.file_size)} • Uploaded{" "}
-                                  {formatDate(result.upload_date)}
-                                  {result.reference_date &&
-                                    ` • Reference: ${formatDate(
-                                      result.reference_date
-                                    )}`}
-                                </CardDescription>
-                              </div>
-                              <div className="text-left sm:text-right">
-                                <div className="text-sm font-medium">
-                                  {result.similarity_score &&
-                                  !isNaN(result.similarity_score)
-                                    ? `${(
-                                        result.similarity_score * 100
-                                      ).toFixed(1)}% match`
-                                    : "No score"}
-                                </div>
+                  <div className="space-y-4">
+                    {searchResults.map((result) => (
+                      <Card
+                        key={result.file_id}
+                        className="border-l-4 border-l-blue-500"
+                      >
+                        <CardHeader className="pb-3">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                            <div className="flex-1">
+                              <CardTitle className="text-lg">
+                                {result.filename || "Unknown filename"}
+                              </CardTitle>
+                              <CardDescription>
+                                {formatFileSize(result.file_size)} • Uploaded{" "}
+                                {formatDate(result.upload_date)}
+                                {result.reference_date &&
+                                  ` • Reference: ${formatDate(
+                                    result.reference_date
+                                  )}`}
+                              </CardDescription>
+                            </div>
+                            <div className="text-left sm:text-right">
+                              <div className="text-sm font-medium">
+                                {result.similarity_score &&
+                                !isNaN(result.similarity_score)
+                                  ? `${(result.similarity_score * 100).toFixed(
+                                      1
+                                    )}% match`
+                                  : "No score"}
                               </div>
                             </div>
-                          </CardHeader>
-                          <CardContent>
-                            <p className="text-sm mb-3">
-                              {result.summary_text || "No summary available"}
-                            </p>
-
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              {result.extracted_tags?.industries?.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                              {result.extracted_tags?.sectors?.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                              {result.extracted_tags?.stock_names?.map(
-                                (tag) => (
-                                  <span
-                                    key={tag}
-                                    className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded"
-                                  >
-                                    {tag}
-                                  </span>
-                                )
-                              )}
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="w-full sm:w-auto"
-                                onClick={async () => {
-                                  try {
-                                    const summaryText =
-                                      result.summary_text ||
-                                      "No summary available";
-
-                                    if (
-                                      navigator.clipboard &&
-                                      navigator.clipboard.writeText
-                                    ) {
-                                      await navigator.clipboard.writeText(
-                                        summaryText
-                                      );
-                                      toast({
-                                        title: "Summary Copied",
-                                        description:
-                                          "Summary has been copied to clipboard",
-                                      });
-                                    } else {
-                                      // Fallback for older browsers
-                                      const textArea =
-                                        document.createElement("textarea");
-                                      textArea.value = summaryText;
-                                      document.body.appendChild(textArea);
-                                      textArea.select();
-                                      document.execCommand("copy");
-                                      document.body.removeChild(textArea);
-
-                                      toast({
-                                        title: "Summary Copied",
-                                        description:
-                                          "Summary has been copied to clipboard (fallback method)",
-                                      });
-                                    }
-                                  } catch (error) {
-                                    console.error(
-                                      "Error copying summary:",
-                                      error
-                                    );
-                                    toast({
-                                      title: "Copy Failed",
-                                      description:
-                                        "Failed to copy summary to clipboard",
-                                      variant: "destructive",
-                                    });
-                                  }
-                                }}
-                              >
-                                Copy Summary
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm mb-3">
+                            {result.summary_text || "No summary available"}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -1029,9 +1072,8 @@ export default function VectorSearch() {
                 <VectorFileUploader
                   onUploadSuccess={() => {
                     try {
-                      // Refresh available tags and stats after successful upload
+                      // Refresh available tags after successful upload
                       loadAvailableTags();
-                      loadDocumentStats();
                       toast({
                         title: "Upload Complete",
                         description:

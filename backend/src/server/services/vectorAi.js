@@ -52,36 +52,40 @@ export async function generateComprehensiveSummary(
 
     // Calculate target summary length based on document size
     const documentLength = content.length;
+    console.log(
+      `[ComprehensiveSummary] Processing document: ${filename}, Length: ${documentLength} characters`
+    );
     const wordsPerPage = 500; // Approximate words per page
     const documentPages = Math.ceil(documentLength / (wordsPerPage * 5)); // Rough estimate
 
-    // Target 5-7 pages for 70-100 page documents, proportional for others
+    // Target more comprehensive summaries - increase target length
     let targetSummaryPages;
     if (documentPages >= 70) {
       targetSummaryPages = Math.min(
-        7,
-        Math.max(5, Math.ceil(documentPages * 0.08))
-      ); // 8% of original
+        10,
+        Math.max(7, Math.ceil(documentPages * 0.12))
+      ); // 12% of original (increased from 8%)
     } else if (documentPages >= 20) {
       targetSummaryPages = Math.min(
-        5,
-        Math.max(3, Math.ceil(documentPages * 0.15))
-      ); // 15% of original
+        8,
+        Math.max(5, Math.ceil(documentPages * 0.2))
+      ); // 20% of original (increased from 15%)
     } else {
       targetSummaryPages = Math.min(
-        3,
-        Math.max(1, Math.ceil(documentPages * 0.25))
-      ); // 25% of original
+        5,
+        Math.max(3, Math.ceil(documentPages * 0.35))
+      ); // 35% of original (increased from 25%)
     }
 
     const targetWords = targetSummaryPages * wordsPerPage;
 
-    // Truncate content if too long (GPT-5 has a 128k context limit)
-    const maxContentLength = 120000; // Leave room for prompt
+    // Use full content - GPT-5-mini can handle large documents
+    // Only truncate if extremely large (over 1M chars) to prevent API issues
+    const maxContentLength = 1000000; // 1M characters should be enough for most documents
     const truncatedContent =
       content.length > maxContentLength
         ? content.substring(0, maxContentLength) +
-          "\n\n[Content truncated due to length]"
+          "\n\n[Content truncated due to extreme length - document is over 1M characters]"
         : content;
 
     // Build prompt: use custom user prompt if provided; otherwise use backend default
@@ -101,14 +105,16 @@ Content: ${truncatedContent}
 
 Rules for summarization:
 
-1. Do not omit any important information, data, figures, or arguments.
-2. Preserve the logical flow of the document (headings, subheadings, and sections).
-3. Condense repetitive or verbose text, but never remove critical details.
-4. If numbers, statistics, or research findings are included, always retain them accurately in the summary.
-5. Extract relevant tables, lists, or structured content in a simplified format.
+1. Do not omit ANY important information, data, figures, or arguments - be extremely thorough.
+2. Preserve the logical flow of the document (headings, subheadings, and sections) exactly.
+3. Condense repetitive or verbose text, but NEVER remove critical details.
+4. If numbers, statistics, or research findings are included, ALWAYS retain them accurately in the summary.
+5. Extract ALL relevant tables, lists, or structured content in a simplified format.
 6. The final output should be coherent, factually accurate, and easy to navigate.
 7. Treat every paragraph as potentially meaningful—summarize instead of skipping.
 8. Make sure the summary acts as a comprehensive substitute for reading the full document, while strictly avoiding the loss of essential details.
+9. Include ALL examples, case studies, and detailed explanations - don't skip them.
+10. Be as detailed as possible while maintaining readability - err on the side of including more information.
 
 ${baseInstruction}
 
@@ -134,7 +140,7 @@ Generate a comprehensive summary that maintains the document's essential informa
           content: prompt,
         },
       ],
-      max_completion_tokens: 8000, // Increased for longer summaries
+      max_completion_tokens: 20000, // Increased for very comprehensive summaries
     });
 
     const processingTime = Date.now() - startTime;
@@ -144,6 +150,11 @@ Generate a comprehensive summary that maintains the document's essential informa
 
     console.log(
       `[ComprehensiveSummary] Generated ${summary.length} character summary for ${filename} in ${processingTime}ms using ${tokensUsed} tokens`
+    );
+    console.log(
+      `[ComprehensiveSummary] Target was ${targetWords} words (${targetSummaryPages} pages), actual summary: ${Math.round(
+        summary.length / 5
+      )} words`
     );
 
     return {
@@ -184,11 +195,13 @@ export async function processDocumentWithAI(content, filename, options = {}) {
       { prompt: options?.prompt }
     );
 
-    // Truncate content if too long (GPT-5-mini has a 128k context limit)
-    const maxContentLength = 100000; // Leave room for prompt
+    // Use full content for metadata extraction - GPT-5-mini can handle large documents
+    // Only truncate if extremely large (over 1M chars) to prevent API issues
+    const maxContentLength = 1000000; // 1M characters should be enough for most documents
     const truncatedContent =
       content.length > maxContentLength
-        ? content.substring(0, maxContentLength) + "..."
+        ? content.substring(0, maxContentLength) +
+          "\n\n[Content truncated due to extreme length]"
         : content;
 
     const prompt = `Analyze this document and return ONLY valid JSON. Do not include any text before or after the JSON.
@@ -228,7 +241,7 @@ Rules:
           content: prompt,
         },
       ],
-      max_completion_tokens: 2000,
+      max_completion_tokens: 4000, // Increased for better metadata extraction
     });
 
     const processingTime = Date.now() - startTime;
@@ -266,10 +279,10 @@ Rules:
       console.warn("Using fallback analysis due to JSON parsing error");
     }
 
-    // Validate and clean the response - using comprehensive summary as primary
+    // Validate and clean the response - generate separate comprehensive summary
     const processedData = {
       summary: summaryResult.summary, // Use comprehensive summary as the primary summary
-      comprehensive_summary: summaryResult.summary, // Keep comprehensive summary field for compatibility
+      comprehensive_summary: summaryResult.summary, // This is already the comprehensive summary from generateComprehensiveSummary
       industries: Array.isArray(analysis.industries)
         ? analysis.industries.filter(Boolean)
         : [],
@@ -326,6 +339,59 @@ export function createEmbeddingText(processedData) {
   ].filter(Boolean);
 
   return parts.join(" | ");
+}
+
+/**
+ * Generate an answer to a question based on retrieved document content
+ * @param {string} question - The question to answer
+ * @param {string} context - Retrieved document content
+ * @returns {Promise<string>} - Generated answer
+ */
+export async function generateAnswer(question, context) {
+  try {
+    if (!config.OPENAI_API_KEY) {
+      throw new Error("OpenAI API key not configured");
+    }
+
+    const prompt = `You are an expert document analyst. Answer the following question based ONLY on the provided document content. Be precise and factual.
+
+Question: ${question}
+
+Document Content:
+${context}
+
+Instructions:
+1. Answer the question directly and concisely
+2. Use only information from the provided documents
+3. If the answer is not found in the documents, say "The answer is not available in the provided documents"
+4. Include specific numbers, dates, and facts when available
+5. Be accurate and don't make assumptions
+6. Format your answer clearly and professionally
+
+Answer:`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-5-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a precise document analyst who answers questions based only on provided content. Be factual and concise.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      max_completion_tokens: 2000, // Increased for more detailed answers
+      // Note: GPT-5-mini only supports default temperature (1)
+    });
+
+    return response.choices[0].message.content.trim();
+  } catch (error) {
+    console.error("Error generating answer:", error);
+    throw new Error(`Failed to generate answer: ${error.message}`);
+  }
 }
 
 /**

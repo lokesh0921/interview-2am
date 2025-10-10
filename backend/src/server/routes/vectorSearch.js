@@ -7,12 +7,14 @@ import {
   getDocumentSummary,
   getFileContent,
 } from "../services/vectorUpload.js";
+import { getRawDocumentModel } from "../models/RawDocument.js";
 import {
   semanticSearch,
   getAvailableTags,
   getDateRange,
   getDocumentStats,
 } from "../services/vectorSearch.js";
+import { generateAnswer } from "../services/vectorAi.js";
 import { authMiddleware } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -77,7 +79,94 @@ router.post(
   }
 );
 
-// Semantic search
+// Question-answering endpoint (replaces semantic search)
+router.post("/ask", authMiddleware.required, async (req, res) => {
+  try {
+    const { question } = req.body;
+    const userId = req.user.sub;
+
+    console.log(`[VectorSearch API] Question request received:`);
+    console.log(`  - User ID: ${userId}`);
+    console.log(`  - Question: "${question}"`);
+
+    if (!question || question.trim().length === 0) {
+      console.log(`[VectorSearch API] Invalid question: empty or missing`);
+      return res.status(400).json({ error: "Question is required" });
+    }
+
+    // Step 1: Find relevant documents using semantic search
+    console.log(`[VectorSearch API] Finding relevant documents...`);
+    const searchResults = await semanticSearch(question, userId, {
+      limit: 5, // Get top 5 most relevant documents
+      minScore: 0.1,
+      includeMetadata: true,
+    });
+
+    if (searchResults.results.length === 0) {
+      console.log(`[VectorSearch API] No relevant documents found`);
+      return res.json({
+        success: true,
+        question,
+        answer:
+          "No relevant documents found to answer this question. Please upload some documents first.",
+        sources: [],
+      });
+    }
+
+    // Step 2: Extract relevant content from top documents
+    // Use both summary and raw content for comprehensive answers
+    const relevantContent = searchResults.results.map((doc) => {
+      // Get raw content from the database
+      const RawDocument = getRawDocumentModel();
+      return RawDocument.findOne({ file_id: doc.file_id })
+        .then((rawDoc) => {
+          const rawContent = rawDoc?.raw_content || "Raw content not available";
+          const summaryContent = doc.summary_text || "Summary not available";
+
+          return `Document: ${doc.filename}
+Summary: ${summaryContent}
+Raw Content: ${rawContent}`;
+        })
+        .catch(() => {
+          // Fallback to summary only if raw content fetch fails
+          return `Document: ${doc.filename}\nContent: ${doc.summary_text}`;
+        });
+    });
+
+    // Wait for all content to be fetched
+    const resolvedContent = await Promise.all(relevantContent);
+    const finalContent = resolvedContent.join("\n\n");
+
+    console.log(`[VectorSearch API] Generating answer with GPT-5-mini...`);
+    // Step 3: Use AI to answer the question based on retrieved content
+    const answer = await generateAnswer(question, finalContent);
+
+    console.log(`[VectorSearch API] Answer generated successfully`);
+
+    res.json({
+      success: true,
+      question,
+      answer,
+      sources: searchResults.results.map((doc) => ({
+        file_id: doc.file_id,
+        filename: doc.filename,
+        similarity_score: doc.similarity_score,
+        summary: doc.summary_text,
+        upload_date: doc.upload_date,
+        file_size: doc.file_size,
+        mime_type: doc.mime_type,
+      })),
+    });
+  } catch (error) {
+    console.error(`[VectorSearch API] Question-answering error:`, error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to answer question",
+    });
+  }
+});
+
+// Legacy semantic search (kept for compatibility)
 router.post("/search", authMiddleware.required, async (req, res) => {
   try {
     const { query, options = {} } = req.body;
@@ -554,12 +643,11 @@ router.get("/all-documents", authMiddleware.required, async (req, res) => {
             ...(doc.summary.extracted_tags.stock_names || []),
           ]
         : [],
-      summary: (
+      summary:
         doc.summary?.comprehensive_summary ||
         doc.summary?.summary_text ||
-        "No summary available"
-      ).substring(0, 2000),
-      text: (doc.raw_content || "No raw content available").substring(0, 3000),
+        "No summary available",
+      text: doc.raw_content || "No raw content available",
       metadata: {
         file_size: doc.file_size,
         mime_type: doc.mime_type,
