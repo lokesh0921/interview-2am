@@ -8,9 +8,9 @@ import {
   getFileContent,
 } from "../services/vectorUpload.js";
 import { getRawDocumentModel } from "../models/RawDocument.js";
+import { getDocumentSummaryModel } from "../models/DocumentSummary.js";
 import {
   semanticSearch,
-  getAvailableTags,
   getDateRange,
   getDocumentStats,
 } from "../services/vectorSearch.js";
@@ -384,25 +384,6 @@ router.get(
     }
   }
 );
-
-// Get available tags for filtering
-router.get("/tags", authMiddleware.required, async (req, res) => {
-  try {
-    const userId = req.user.sub;
-    const tags = await getAvailableTags(userId);
-
-    res.json({
-      success: true,
-      data: tags,
-    });
-  } catch (error) {
-    console.error("Get tags error:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message || "Failed to get tags",
-    });
-  }
-});
 
 // Get date range for documents
 router.get("/date-range", authMiddleware.required, async (req, res) => {

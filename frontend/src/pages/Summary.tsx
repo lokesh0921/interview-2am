@@ -71,15 +71,36 @@ export default function Summary() {
   }>({ isOpen: false, item: null });
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Search functionality
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  // Search functionality with state persistence
+  const [searchQuery, setSearchQuery] = useState(() => {
+    const saved = localStorage.getItem("summary-search-query");
+    return saved || "";
+  });
+  const [searchResults, setSearchResults] = useState<SearchResult[]>(() => {
+    const saved = localStorage.getItem("summary-search-results");
+    return saved ? JSON.parse(saved) : [];
+  });
   const [isSearching, setIsSearching] = useState(false);
-  const [searchMode, setSearchMode] = useState(false);
-  const [searchPage, setSearchPage] = useState(1);
-  const [searchHasMore, setSearchHasMore] = useState(true);
-  const [searchTotal, setSearchTotal] = useState(0);
-  const [searchType, setSearchType] = useState<"tags" | "text">("tags");
+  const [searchMode, setSearchMode] = useState(() => {
+    const saved = localStorage.getItem("summary-search-mode");
+    return saved === "true";
+  });
+  const [searchPage, setSearchPage] = useState(() => {
+    const saved = localStorage.getItem("summary-search-page");
+    return saved ? parseInt(saved) : 1;
+  });
+  const [searchHasMore, setSearchHasMore] = useState(() => {
+    const saved = localStorage.getItem("summary-search-has-more");
+    return saved === "true";
+  });
+  const [searchTotal, setSearchTotal] = useState(() => {
+    const saved = localStorage.getItem("summary-search-total");
+    return saved ? parseInt(saved) : 0;
+  });
+  const [searchType, setSearchType] = useState<"tags" | "text">(() => {
+    const saved = localStorage.getItem("summary-search-type");
+    return (saved as "tags" | "text") || "tags";
+  });
 
   // Search function
   const handleSearch = useCallback(
@@ -144,7 +165,46 @@ export default function Summary() {
     setSearchPage(1);
     setSearchHasMore(true);
     setSearchTotal(0);
+    // Clear localStorage
+    localStorage.removeItem("summary-search-query");
+    localStorage.removeItem("summary-search-results");
+    localStorage.removeItem("summary-search-mode");
+    localStorage.removeItem("summary-search-page");
+    localStorage.removeItem("summary-search-has-more");
+    localStorage.removeItem("summary-search-total");
   };
+
+  // Save search state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("summary-search-query", searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "summary-search-results",
+      JSON.stringify(searchResults)
+    );
+  }, [searchResults]);
+
+  useEffect(() => {
+    localStorage.setItem("summary-search-mode", searchMode.toString());
+  }, [searchMode]);
+
+  useEffect(() => {
+    localStorage.setItem("summary-search-page", searchPage.toString());
+  }, [searchPage]);
+
+  useEffect(() => {
+    localStorage.setItem("summary-search-has-more", searchHasMore.toString());
+  }, [searchHasMore]);
+
+  useEffect(() => {
+    localStorage.setItem("summary-search-total", searchTotal.toString());
+  }, [searchTotal]);
+
+  useEffect(() => {
+    localStorage.setItem("summary-search-type", searchType);
+  }, [searchType]);
 
   const loadItems = useCallback(async (page: number, isInitial = false) => {
     try {
@@ -250,6 +310,25 @@ export default function Summary() {
 
   useEffect(() => {
     console.log("[Summary] Component mounted, loading initial items...");
+
+    // Check if we have saved search state
+    const savedQuery = localStorage.getItem("summary-search-query");
+    const savedResults = localStorage.getItem("summary-search-results");
+    const savedMode = localStorage.getItem("summary-search-mode");
+
+    if (savedQuery && savedResults && savedMode === "true") {
+      // We have saved search state, don't load regular items
+      console.log("[Summary] Restoring saved search state");
+      toast({
+        title: "Search State Restored",
+        description: `Restored search for "${savedQuery}" with ${
+          JSON.parse(savedResults).length
+        } results`,
+      });
+      return;
+    }
+
+    // No saved search state, load regular items
     loadItems(1, true);
   }, [loadItems]);
 
@@ -368,6 +447,9 @@ export default function Summary() {
           {searchMode && searchTotal > 0 && (
             <div className="text-sm text-gray-500 dark:text-gray-400">
               Found {searchTotal} results for "{searchQuery}"
+              <span className="ml-2 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
+                State Saved
+              </span>
             </div>
           )}
         </div>
@@ -533,10 +615,51 @@ export default function Summary() {
                         <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">
                           {result.filename}
                         </h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {new Date(result.upload_date).toLocaleDateString()}
-                          </span>
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          <div className="flex items-center gap-1">
+                            <svg
+                              className="h-3 w-3 text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              Uploaded:{" "}
+                              {new Date(
+                                result.upload_date
+                              ).toLocaleDateString()}
+                            </span>
+                          </div>
+                          {result.reference_date && (
+                            <div className="flex items-center gap-1">
+                              <svg
+                                className="h-3 w-3 text-gray-400"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                />
+                              </svg>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                Reference:{" "}
+                                {new Date(
+                                  result.reference_date
+                                ).toLocaleDateString()}
+                              </span>
+                            </div>
+                          )}
                           {result.score && (
                             <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full">
                               Score: {result.score.toFixed(2)}
@@ -727,7 +850,26 @@ export default function Summary() {
                           <Trash2 className="w-6 h-6" />
                         </button>
                       </div>
-                      <div className="flex flex-wrap gap-1 mt-1">
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <div className="flex items-center gap-1">
+                          <svg
+                            className="h-3 w-3 text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            Uploaded:{" "}
+                            {new Date(item.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
                         {item.categories?.map((category, idx) => (
                           <span
                             key={idx}

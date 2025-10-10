@@ -13,12 +13,6 @@ import { Tabs, TabsContent } from "../components/ui/tabs";
 import { useToast } from "../hooks/use-toast";
 import VectorFileUploader from "../components/VectorFileUploader";
 import Header from "@/components/Header";
-import { ChevronDown, ChevronRight } from "lucide-react";
-import { useVectorSearchState } from "../contexts/AppStateContext";
-import {
-  useNavigationState,
-  useScrollRestoration,
-} from "../hooks/useNavigationState";
 
 interface SearchResult {
   file_id: string;
@@ -48,14 +42,8 @@ interface QuestionAnswer {
     upload_date: string;
     file_size: number;
     mime_type: string;
+    reference_date?: string;
   }[];
-}
-
-interface AvailableTags {
-  industries: string[];
-  sectors: string[];
-  stock_names: string[];
-  general_tags: string[];
 }
 
 export default function VectorSearch() {
@@ -104,101 +92,17 @@ export default function VectorSearch() {
   const [lastSearchQuery, setLastSearchQuery] = useState("");
 
   // Filter state
-  const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
-  const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
-  const [selectedStockNames, setSelectedStockNames] = useState<string[]>([]);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [minScore, setMinScore] = useState(0.1);
 
   // Data state
-  const [availableTags, setAvailableTags] = useState<AvailableTags>({
-    industries: [],
-    sectors: [],
-    stock_names: [],
-    general_tags: [],
-  });
   const [activeTab, setActiveTab] = useState<"search" | "upload">("search");
-
-  // Tag section visibility state
-  const [tagSectionVisibility, setTagSectionVisibility] = useState({
-    industries: false,
-    sectors: false,
-    companies: false,
-  });
 
   // Load initial data
   useEffect(() => {
-    if (session) {
-      try {
-        loadAvailableTags();
-      } catch (error) {
-        console.error("Error loading initial data:", error);
-        toast({
-          title: "Loading Error",
-          description: "Failed to load initial data. Please refresh the page.",
-          variant: "destructive",
-        });
-      }
-    }
+    // No initial data loading needed without tags
   }, [session]);
-
-  const loadAvailableTags = async () => {
-    try {
-      const token =
-        session?.access_token || localStorage.getItem("sb:token") || "";
-
-      if (!token) {
-        throw new Error("No authentication token available");
-      }
-
-      console.log(
-        "Loading tags with token:",
-        token ? "Token present" : "No token"
-      );
-      console.log("Session:", session ? "Session present" : "No session");
-
-      const apiUrl = `${
-        import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
-      }/vector-search/tags`;
-
-      const response = await fetch(apiUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      const data = await response.json();
-
-      if (!data || !data.data) {
-        throw new Error("Invalid response format from server");
-      }
-
-      setAvailableTags(data.data);
-    } catch (error) {
-      console.error("Failed to load tags:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
-      toast({
-        title: "Loading Error",
-        description: `Failed to load available tags: ${errorMessage}`,
-        variant: "destructive",
-      });
-      // Set empty tags as fallback
-      setAvailableTags({
-        industries: [],
-        sectors: [],
-        stock_names: [],
-        general_tags: [],
-      });
-    }
-  };
 
   const handleAskQuestion = async () => {
     try {
@@ -476,86 +380,8 @@ export default function VectorSearch() {
     }
   };
 
-  // Toggle tag section visibility
-  const toggleTagSection = (
-    section: "industries" | "sectors" | "companies"
-  ) => {
-    setTagSectionVisibility((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
-  };
-
-  // Toggle all sections
-  const toggleAllSections = () => {
-    const allExpanded = Object.values(tagSectionVisibility).every(Boolean);
-    setTagSectionVisibility({
-      industries: !allExpanded,
-      sectors: !allExpanded,
-      companies: !allExpanded,
-    });
-  };
-
-  const handleTagToggle = (
-    tag: string,
-    type: "industries" | "sectors" | "stock_names"
-  ) => {
-    try {
-      if (!tag || typeof tag !== "string") {
-        toast({
-          title: "Input Error",
-          description: "Invalid tag provided",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const setters = {
-        industries: setSelectedIndustries,
-        sectors: setSelectedSectors,
-        stock_names: setSelectedStockNames,
-      };
-
-      const currentValues = {
-        industries: Array.isArray(selectedIndustries) ? selectedIndustries : [],
-        sectors: Array.isArray(selectedSectors) ? selectedSectors : [],
-        stock_names: Array.isArray(selectedStockNames)
-          ? selectedStockNames
-          : [],
-      };
-
-      const setter = setters[type];
-      const current = currentValues[type];
-
-      if (!setter || !Array.isArray(current)) {
-        toast({
-          title: "State Error",
-          description: "Invalid state configuration",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (current.includes(tag)) {
-        setter(current.filter((t) => t !== tag));
-      } else {
-        setter([...current, tag]);
-      }
-    } catch (error) {
-      console.error("Error toggling tag:", error);
-      toast({
-        title: "Tag Toggle Error",
-        description: "Failed to toggle tag selection",
-        variant: "destructive",
-      });
-    }
-  };
-
   const clearFilters = () => {
     try {
-      setSelectedIndustries([]);
-      setSelectedSectors([]);
-      setSelectedStockNames([]);
       setDateFrom("");
       setDateTo("");
       setMinScore(0.1);
@@ -766,239 +592,6 @@ export default function VectorSearch() {
                     Clear All Filters
                   </Button>
                 </div>
-
-                {/* Tag Filters */}
-                <div className="space-y-3 sm:space-y-4 ">
-                  {/* Expand/Collapse All Button */}
-                  {(availableTags.industries.length > 0 ||
-                    availableTags.sectors.length > 0 ||
-                    availableTags.stock_names.length > 0) && (
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 ">
-                      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Filter by Tags
-                      </h3>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={toggleAllSections}
-                        className="text-xs w-full sm:w-auto"
-                      >
-                        {Object.values(tagSectionVisibility).every(Boolean)
-                          ? "Collapse All"
-                          : "Expand All"}
-                      </Button>
-                    </div>
-                  )}
-                  {/* Industries Section */}
-                  {availableTags.industries.length > 0 && (
-                    <div className="border rounded-lg mb-4">
-                      <button
-                        onClick={() => toggleTagSection("industries")}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            toggleTagSection("industries");
-                          }
-                        }}
-                        className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded-lg"
-                        aria-expanded={tagSectionVisibility.industries}
-                        aria-controls="industries-tags"
-                      >
-                        <div className="flex items-center gap-2">
-                          {tagSectionVisibility.industries ? (
-                            <ChevronDown className="h-4 w-4 text-gray-500 transition-transform duration-200" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-gray-500 transition-transform duration-200" />
-                          )}
-                          <span className="font-medium text-sm">
-                            Industries ({availableTags.industries.length})
-                            {selectedIndustries.length > 0 &&
-                              !tagSectionVisibility.industries && (
-                                <span className="ml-2 text-blue-600 dark:text-blue-400">
-                                  • {selectedIndustries.length} selected
-                                </span>
-                              )}
-                          </span>
-                        </div>
-                        {selectedIndustries.length > 0 && (
-                          <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full">
-                            {selectedIndustries.length} selected
-                          </span>
-                        )}
-                      </button>
-                      <div
-                        id="industries-tags"
-                        className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                          tagSectionVisibility.industries
-                            ? "max-h-[800px] opacity-100"
-                            : "max-h-0 opacity-0"
-                        }`}
-                      >
-                        <div className="p-3 pt-0 pb-4">
-                          <div className="flex flex-wrap gap-2">
-                            {availableTags.industries.map((industry) => (
-                              <Button
-                                key={industry}
-                                variant={
-                                  selectedIndustries.includes(industry)
-                                    ? "default"
-                                    : "outline"
-                                }
-                                size="sm"
-                                onClick={() =>
-                                  handleTagToggle(industry, "industries")
-                                }
-                                className="text-xs px-2 py-1 transition-all duration-200 hover:scale-105 min-h-[32px] touch-manipulation"
-                              >
-                                {industry}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Sectors Section */}
-                  {availableTags.sectors.length > 0 && (
-                    <div className="border rounded-lg mb-4">
-                      <button
-                        onClick={() => toggleTagSection("sectors")}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            toggleTagSection("sectors");
-                          }
-                        }}
-                        className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 rounded-lg"
-                        aria-expanded={tagSectionVisibility.sectors}
-                        aria-controls="sectors-tags"
-                      >
-                        <div className="flex items-center gap-2">
-                          {tagSectionVisibility.sectors ? (
-                            <ChevronDown className="h-4 w-4 text-gray-500 transition-transform duration-200" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-gray-500 transition-transform duration-200" />
-                          )}
-                          <span className="font-medium text-sm">
-                            Sectors ({availableTags.sectors.length})
-                            {selectedSectors.length > 0 &&
-                              !tagSectionVisibility.sectors && (
-                                <span className="ml-2 text-green-600 dark:text-green-400">
-                                  • {selectedSectors.length} selected
-                                </span>
-                              )}
-                          </span>
-                        </div>
-                        {selectedSectors.length > 0 && (
-                          <span className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
-                            {selectedSectors.length} selected
-                          </span>
-                        )}
-                      </button>
-                      <div
-                        id="sectors-tags"
-                        className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                          tagSectionVisibility.sectors
-                            ? "max-h-[800px] opacity-100"
-                            : "max-h-0 opacity-0"
-                        }`}
-                      >
-                        <div className="p-3 pt-0 pb-4">
-                          <div className="flex flex-wrap gap-2">
-                            {availableTags.sectors.map((sector) => (
-                              <Button
-                                key={sector}
-                                variant={
-                                  selectedSectors.includes(sector)
-                                    ? "default"
-                                    : "outline"
-                                }
-                                size="sm"
-                                onClick={() =>
-                                  handleTagToggle(sector, "sectors")
-                                }
-                                className="text-xs px-2 py-1 transition-all duration-200 hover:scale-105 min-h-[32px] touch-manipulation"
-                              >
-                                {sector}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Companies Section */}
-                  {availableTags.stock_names.length > 0 && (
-                    <div className="border rounded-lg mb-4">
-                      <button
-                        onClick={() => toggleTagSection("companies")}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            toggleTagSection("companies");
-                          }
-                        }}
-                        className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 rounded-lg"
-                        aria-expanded={tagSectionVisibility.companies}
-                        aria-controls="companies-tags"
-                      >
-                        <div className="flex items-center gap-2">
-                          {tagSectionVisibility.companies ? (
-                            <ChevronDown className="h-4 w-4 text-gray-500 transition-transform duration-200" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-gray-500 transition-transform duration-200" />
-                          )}
-                          <span className="font-medium text-sm">
-                            Companies ({availableTags.stock_names.length})
-                            {selectedStockNames.length > 0 &&
-                              !tagSectionVisibility.companies && (
-                                <span className="ml-2 text-purple-600 dark:text-purple-400">
-                                  • {selectedStockNames.length} selected
-                                </span>
-                              )}
-                          </span>
-                        </div>
-                        {selectedStockNames.length > 0 && (
-                          <span className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded-full">
-                            {selectedStockNames.length} selected
-                          </span>
-                        )}
-                      </button>
-                      <div
-                        id="companies-tags"
-                        className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                          tagSectionVisibility.companies
-                            ? "max-h-[800px] opacity-100"
-                            : "max-h-0 opacity-0"
-                        }`}
-                      >
-                        <div className="p-3 pt-0 pb-4">
-                          <div className="flex flex-wrap gap-2">
-                            {availableTags.stock_names.map((stock) => (
-                              <Button
-                                key={stock}
-                                variant={
-                                  selectedStockNames.includes(stock)
-                                    ? "default"
-                                    : "outline"
-                                }
-                                size="sm"
-                                onClick={() =>
-                                  handleTagToggle(stock, "stock_names")
-                                }
-                                className="text-xs px-2 py-1 transition-all duration-200 hover:scale-105 min-h-[32px] touch-manipulation"
-                              >
-                                {stock}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </CardContent>
             </Card>
 
@@ -1044,9 +637,53 @@ export default function VectorSearch() {
                                         {source.filename || "Unknown filename"}
                                       </CardTitle>
                                       <CardDescription>
-                                        {formatFileSize(source.file_size)} •
-                                        Uploaded{" "}
-                                        {formatDate(source.upload_date)}
+                                        <div className="flex flex-wrap items-center gap-3 text-sm">
+                                          <span>
+                                            {formatFileSize(source.file_size)}
+                                          </span>
+                                          <div className="flex items-center gap-1">
+                                            <svg
+                                              className="h-3 w-3 text-gray-400"
+                                              fill="none"
+                                              stroke="currentColor"
+                                              viewBox="0 0 24 24"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                              />
+                                            </svg>
+                                            <span>
+                                              Uploaded:{" "}
+                                              {formatDate(source.upload_date)}
+                                            </span>
+                                          </div>
+                                          {source.reference_date && (
+                                            <div className="flex items-center gap-1">
+                                              <svg
+                                                className="h-3 w-3 text-gray-400"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                              >
+                                                <path
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                  strokeWidth={2}
+                                                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                />
+                                              </svg>
+                                              <span>
+                                                Reference:{" "}
+                                                {formatDate(
+                                                  source.reference_date
+                                                )}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
                                       </CardDescription>
                                     </div>
                                     <div className="text-left sm:text-right">
@@ -1213,12 +850,50 @@ export default function VectorSearch() {
                                 {result.filename || "Unknown filename"}
                               </CardTitle>
                               <CardDescription>
-                                {formatFileSize(result.file_size)} • Uploaded{" "}
-                                {formatDate(result.upload_date)}
-                                {result.reference_date &&
-                                  ` • Reference: ${formatDate(
-                                    result.reference_date
-                                  )}`}
+                                <div className="flex flex-wrap items-center gap-3 text-sm">
+                                  <span>
+                                    {formatFileSize(result.file_size)}
+                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    <svg
+                                      className="h-3 w-3 text-gray-400"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                      />
+                                    </svg>
+                                    <span>
+                                      Uploaded: {formatDate(result.upload_date)}
+                                    </span>
+                                  </div>
+                                  {result.reference_date && (
+                                    <div className="flex items-center gap-1">
+                                      <svg
+                                        className="h-3 w-3 text-gray-400"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                        />
+                                      </svg>
+                                      <span>
+                                        Reference:{" "}
+                                        {formatDate(result.reference_date)}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
                               </CardDescription>
                             </div>
                             <div className="text-left sm:text-right">
@@ -1258,23 +933,11 @@ export default function VectorSearch() {
               <CardContent>
                 <VectorFileUploader
                   onUploadSuccess={() => {
-                    try {
-                      // Refresh available tags after successful upload
-                      loadAvailableTags();
-                      toast({
-                        title: "Upload Complete",
-                        description:
-                          "Document has been processed and is now searchable",
-                      });
-                    } catch (error) {
-                      console.error("Error in upload success callback:", error);
-                      toast({
-                        title: "Upload Complete",
-                        description:
-                          "Document uploaded but failed to refresh data",
-                        variant: "destructive",
-                      });
-                    }
+                    toast({
+                      title: "Upload Complete",
+                      description:
+                        "Document has been processed and is now searchable",
+                    });
                   }}
                   onUploadError={(error) => {
                     try {

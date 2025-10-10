@@ -8,11 +8,17 @@
  */
 
 import mongoose from "mongoose";
-import { getVectorConnection } from "./src/server/util/vectorMongo.js";
+import {
+  connectVectorMongo,
+  getVectorConnection,
+} from "./src/server/util/vectorMongo.js";
 
 async function createIndexes() {
   try {
     console.log("🔗 Connecting to MongoDB...");
+
+    // Initialize the vector search connection
+    await connectVectorMongo();
 
     // Get the vector search connection
     const connection = getVectorConnection();
