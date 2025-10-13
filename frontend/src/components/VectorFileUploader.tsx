@@ -39,6 +39,12 @@ export default function VectorFileUploader({
 
     setIsUploading(true);
 
+    // Show initial progress toast
+    toast({
+      title: "Upload Started",
+      description: `Processing "${file.name}" - this may take 30-60 seconds for large documents`,
+    });
+
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -46,10 +52,33 @@ export default function VectorFileUploader({
         formData.append("prompt", customPrompt.trim());
       }
 
+      // Show processing steps
+      const processingSteps = [
+        "📁 Uploading file...",
+        "📄 Extracting text content...",
+        "🤖 Generating AI summary...",
+        "🏷️ Extracting metadata...",
+        "💾 Saving processed data...",
+        "✅ Upload complete!",
+      ];
+
+      let currentStep = 0;
+      const stepInterval = setInterval(() => {
+        if (currentStep < processingSteps.length - 1) {
+          currentStep++;
+          toast({
+            title: "Processing...",
+            description: processingSteps[currentStep],
+          });
+        }
+      }, 10000); // Update every 10 seconds
+
       const result = await apiFetch("/vector-search/upload", {
         method: "POST",
         body: formData,
       });
+
+      clearInterval(stepInterval);
 
       toast({
         title: "Upload Successful",
@@ -143,11 +172,11 @@ export default function VectorFileUploader({
 
           <div>
             <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
-              {isUploading ? "Uploading and processing..." : "Upload Document"}
+              {isUploading ? "Processing Document..." : "Upload Document"}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {isUploading
-                ? "Please wait while we process your document with AI"
+                ? "AI is analyzing your document - this may take 30-60 seconds"
                 : "Drag and drop your document here, or click to browse"}
             </p>
           </div>

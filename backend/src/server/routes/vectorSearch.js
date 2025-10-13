@@ -17,6 +17,148 @@ import {
 import { generateAnswer } from "../services/vectorAi.js";
 import { authMiddleware } from "../middleware/auth.js";
 
+/**
+ * Perform keyword-based fallback search when semantic search fails
+ * @param {string} question - The question to search for
+ * @param {string} userId - User ID for authorization
+ * @returns {Promise<Array>} - Array of matching documents
+ */
+async function performKeywordFallbackSearch(question, userId) {
+  try {
+    console.log(`[KeywordFallback] Starting keyword search for: "${question}"`);
+
+    // Extract key terms from the question
+    const questionTerms = question
+      .toLowerCase()
+      .replace(/[^\w\s]/g, " ") // Remove punctuation
+      .split(/\s+/)
+      .filter((term) => term.length > 2) // Filter out short words
+      .filter(
+        (term) =>
+          ![
+            "the",
+            "and",
+            "or",
+            "but",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+            "of",
+            "with",
+            "by",
+          ].includes(term)
+      );
+
+    console.log(`[KeywordFallback] Extracted terms:`, questionTerms);
+
+    const DocumentSummary = getDocumentSummaryModel();
+    const RawDocument = getRawDocumentModel();
+
+    // Build regex patterns for keyword matching
+    const keywordPatterns = questionTerms.map((term) => new RegExp(term, "i"));
+
+    // Search in both summary and raw content
+    const pipeline = [
+      {
+        $lookup: {
+          from: "raw_documents",
+          localField: "file_id",
+          foreignField: "file_id",
+          as: "raw_doc",
+        },
+      },
+      {
+        $match: {
+          "raw_doc.processing_status": "completed",
+          $or: [
+            // Search in summary text
+            {
+              summary_text: { $regex: questionTerms.join("|"), $options: "i" },
+            },
+            {
+              comprehensive_summary: {
+                $regex: questionTerms.join("|"),
+                $options: "i",
+              },
+            },
+            // Search in extracted tags
+            {
+              "extracted_tags.industries": {
+                $regex: questionTerms.join("|"),
+                $options: "i",
+              },
+            },
+            {
+              "extracted_tags.sectors": {
+                $regex: questionTerms.join("|"),
+                $options: "i",
+              },
+            },
+            {
+              "extracted_tags.stock_names": {
+                $regex: questionTerms.join("|"),
+                $options: "i",
+              },
+            },
+            {
+              "extracted_tags.general_tags": {
+                $regex: questionTerms.join("|"),
+                $options: "i",
+              },
+            },
+          ],
+        },
+      },
+      {
+        $limit: 10,
+      },
+      {
+        $project: {
+          file_id: 1,
+          summary_text: 1,
+          comprehensive_summary: 1,
+          extracted_tags: 1,
+          reference_date: 1,
+          filename: { $arrayElemAt: ["$raw_doc.filename", 0] },
+          upload_date: { $arrayElemAt: ["$raw_doc.upload_date", 0] },
+          file_size: { $arrayElemAt: ["$raw_doc.file_size", 0] },
+          mime_type: { $arrayElemAt: ["$raw_doc.mime_type", 0] },
+          similarity_score: 0.5, // Assign a default score for keyword matches
+        },
+      },
+    ];
+
+    const results = await DocumentSummary.aggregate(pipeline);
+
+    console.log(
+      `[KeywordFallback] Found ${results.length} documents via keyword search`
+    );
+
+    return results.map((result) => ({
+      ...result,
+      filename: result.filename || "Unknown filename",
+      upload_date: result.upload_date || new Date(),
+      file_size: result.file_size || 0,
+      mime_type: result.mime_type || "unknown",
+      summary_text:
+        result.comprehensive_summary ||
+        result.summary_text ||
+        "No summary available",
+      extracted_tags: result.extracted_tags || {
+        industries: [],
+        sectors: [],
+        stock_names: [],
+        general_tags: [],
+      },
+    }));
+  } catch (error) {
+    console.error("Keyword fallback search error:", error);
+    return [];
+  }
+}
+
 const router = express.Router();
 
 // Configure multer for file uploads
@@ -94,37 +236,80 @@ router.post("/ask", authMiddleware.required, async (req, res) => {
       return res.status(400).json({ error: "Question is required" });
     }
 
-    // Step 1: Find relevant documents using semantic search
+    // Step 1: Find relevant documents using semantic search with progressive fallback
     console.log(`[VectorSearch API] Finding relevant documents...`);
-    const searchResults = await semanticSearch(question, userId, {
-      limit: 5, // Reduced from 10 to prevent token overflow
-      minScore: 0.5, // Higher minimum score for better relevance
+
+    // Try multiple similarity thresholds with progressive fallback
+    let searchResults;
+    let finalResults = [];
+
+    // First attempt: Standard search with moderate threshold
+    searchResults = await semanticSearch(question, userId, {
+      limit: 10, // Increased to get more candidates
+      minScore: 0.3, // Lowered from 0.5 for broader matching
       includeMetadata: true,
     });
 
-    // Filter to only include truly relevant documents (score > 0.6)
-    const relevantResults = searchResults.results.filter(
-      (doc) => doc.similarity_score > 0.6
+    // Filter with moderate threshold
+    let relevantResults = searchResults.results.filter(
+      (doc) => doc.similarity_score > 0.4
     );
 
-    // Limit to maximum 2 documents to prevent token overflow
-    const finalResults = relevantResults.slice(0, 2);
+    // If no good results, try with lower threshold
+    if (relevantResults.length === 0) {
+      console.log(
+        `[VectorSearch API] No results with score > 0.4, trying lower threshold...`
+      );
+      relevantResults = searchResults.results.filter(
+        (doc) => doc.similarity_score > 0.2
+      );
+    }
+
+    // If still no results, use all results above minimum
+    if (relevantResults.length === 0) {
+      console.log(
+        `[VectorSearch API] No results with score > 0.2, using all available results...`
+      );
+      relevantResults = searchResults.results.filter(
+        (doc) => doc.similarity_score > 0.1
+      );
+    }
+
+    // Increase document limit for better coverage
+    finalResults = relevantResults.slice(0, 5);
 
     console.log(
-      `[VectorSearch API] Found ${searchResults.results.length} total documents, ${relevantResults.length} relevant (score > 0.6), using ${finalResults.length} for answer`
+      `[VectorSearch API] Found ${searchResults.results.length} total documents, ${relevantResults.length} relevant, using ${finalResults.length} for answer`
     );
 
     if (finalResults.length === 0) {
       console.log(
-        `[VectorSearch API] No relevant documents found (all scores below 0.6)`
+        `[VectorSearch API] No relevant documents found with semantic search, trying keyword fallback...`
       );
-      return res.json({
-        success: true,
+
+      // Fallback: Try keyword-based search
+      const keywordResults = await performKeywordFallbackSearch(
         question,
-        answer:
-          "No relevant documents found to answer this question. The available documents don't contain information related to your query.",
-        sources: [],
-      });
+        userId
+      );
+
+      if (keywordResults.length > 0) {
+        console.log(
+          `[VectorSearch API] Found ${keywordResults.length} documents via keyword search`
+        );
+        finalResults = keywordResults.slice(0, 3); // Use top 3 for fallback
+      } else {
+        console.log(
+          `[VectorSearch API] No documents found via keyword search either`
+        );
+        return res.json({
+          success: true,
+          question,
+          answer:
+            "No relevant documents found to answer this question. The available documents don't contain information related to your query. Please try rephrasing your question or upload relevant documents.",
+          sources: [],
+        });
+      }
     }
 
     // Step 2: Extract relevant content from top documents
@@ -137,9 +322,9 @@ router.post("/ask", authMiddleware.required, async (req, res) => {
           const rawContent = rawDoc?.raw_content || "Raw content not available";
           const summaryContent = doc.summary_text || "Summary not available";
 
-          // Truncate content to prevent token overflow
-          const maxSummaryLength = 8000; // 8k chars for summary
-          const maxRawLength = 15000; // 15k chars for raw content
+          // Truncate content to prevent token overflow - increased limits for better coverage
+          const maxSummaryLength = 12000; // Increased from 8k to 12k chars for summary
+          const maxRawLength = 25000; // Increased from 15k to 25k chars for raw content
 
           const truncatedSummary =
             summaryContent.length > maxSummaryLength
@@ -159,8 +344,8 @@ Raw Content: ${truncatedRaw}`;
           // Fallback to summary only if raw content fetch fails
           const summaryContent = doc.summary_text || "Summary not available";
           const truncatedSummary =
-            summaryContent.length > 10000
-              ? summaryContent.substring(0, 10000) + "..."
+            summaryContent.length > 15000 // Increased from 10k to 15k chars
+              ? summaryContent.substring(0, 15000) + "..."
               : summaryContent;
 
           return `Document: ${doc.filename}\nContent: ${truncatedSummary}`;

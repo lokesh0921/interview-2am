@@ -804,9 +804,13 @@ export default function Summary() {
                       <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
                         Summary:
                       </h4>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                        {result.summary_text}
-                      </p>
+                      <div className="markdown text-sm text-gray-700 dark:text-gray-300 leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                        >
+                          {result.summary_text}
+                        </ReactMarkdown>
+                      </div>
                     </div>
 
                     {/* Action Buttons */}
@@ -985,9 +989,64 @@ export default function Summary() {
                       <h4 className="font-medium mb-2 text-gray-700 dark:text-gray-300">
                         Summary
                       </h4>
-                      <div className="markdown bg-gray-100 dark:bg-[#010613] rounded-lg p-4 prose prose-sm dark:prose-invert max-w-none">
+                      <div className="markdown bg-gray-50 dark:bg-[#010613] rounded-lg p-6 prose prose-sm dark:prose-invert max-w-none border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm, remarkBreaks]}
+                          components={{
+                            h1: ({ children }) => (
+                              <h1 className="text-2xl font-bold mb-4 pb-2 border-b border-gray-300 dark:border-gray-600">
+                                {children}
+                              </h1>
+                            ),
+                            h2: ({ children }) => (
+                              <h2 className="text-xl font-semibold mb-3 pb-1 border-b border-gray-200 dark:border-gray-700">
+                                {children}
+                              </h2>
+                            ),
+                            h3: ({ children }) => (
+                              <h3 className="text-lg font-semibold mb-2">
+                                {children}
+                              </h3>
+                            ),
+                            p: ({ children }) => (
+                              <p className="mb-3 leading-relaxed">{children}</p>
+                            ),
+                            ul: ({ children }) => (
+                              <ul className="mb-4 ml-6 list-disc space-y-1">
+                                {children}
+                              </ul>
+                            ),
+                            ol: ({ children }) => (
+                              <ol className="mb-4 ml-6 list-decimal space-y-1">
+                                {children}
+                              </ol>
+                            ),
+                            li: ({ children }) => (
+                              <li className="leading-relaxed">{children}</li>
+                            ),
+                            strong: ({ children }) => (
+                              <strong className="font-semibold text-gray-900 dark:text-gray-100">
+                                {children}
+                              </strong>
+                            ),
+                            table: ({ children }) => (
+                              <div className="overflow-x-auto mb-4">
+                                <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-600">
+                                  {children}
+                                </table>
+                              </div>
+                            ),
+                            th: ({ children }) => (
+                              <th className="border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-left font-semibold">
+                                {children}
+                              </th>
+                            ),
+                            td: ({ children }) => (
+                              <td className="border border-gray-300 dark:border-gray-600 px-3 py-2">
+                                {children}
+                              </td>
+                            ),
+                          }}
                         >
                           {item.summary || "No summary available"}
                         </ReactMarkdown>

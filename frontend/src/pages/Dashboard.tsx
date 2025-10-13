@@ -1,6 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
 import { apiFetch } from "../lib/api";
 import Header from "@/components/Header";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import {
   PieChart,
   Pie,
@@ -366,8 +369,73 @@ export default function Dashboard() {
                             <summary className="cursor-pointer font-medium text-blue-600 hover:text-blue-800 transition-colors">
                               View Summary
                             </summary>
-                            <div className="mt-1 sm:mt-2 p-2 sm:p-3 bg-gray-50 rounded-lg whitespace-pre-wrap">
-                              {it.summary}
+                            <div className="mt-1 sm:mt-2 p-2 sm:p-3 bg-gray-50 rounded-lg">
+                              <div className="markdown prose prose-sm max-w-none text-gray-900">
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkGfm, remarkBreaks]}
+                                  components={{
+                                    h1: ({ children }) => (
+                                      <h1 className="text-lg font-bold mb-3 pb-1 border-b border-gray-300">
+                                        {children}
+                                      </h1>
+                                    ),
+                                    h2: ({ children }) => (
+                                      <h2 className="text-base font-semibold mb-2 pb-1 border-b border-gray-200">
+                                        {children}
+                                      </h2>
+                                    ),
+                                    h3: ({ children }) => (
+                                      <h3 className="text-sm font-semibold mb-2">
+                                        {children}
+                                      </h3>
+                                    ),
+                                    p: ({ children }) => (
+                                      <p className="mb-2 leading-relaxed">
+                                        {children}
+                                      </p>
+                                    ),
+                                    ul: ({ children }) => (
+                                      <ul className="mb-3 ml-4 list-disc space-y-1">
+                                        {children}
+                                      </ul>
+                                    ),
+                                    ol: ({ children }) => (
+                                      <ol className="mb-3 ml-4 list-decimal space-y-1">
+                                        {children}
+                                      </ol>
+                                    ),
+                                    li: ({ children }) => (
+                                      <li className="leading-relaxed">
+                                        {children}
+                                      </li>
+                                    ),
+                                    strong: ({ children }) => (
+                                      <strong className="font-semibold">
+                                        {children}
+                                      </strong>
+                                    ),
+                                    table: ({ children }) => (
+                                      <div className="overflow-x-auto mb-3">
+                                        <table className="min-w-full border-collapse border border-gray-300 text-xs">
+                                          {children}
+                                        </table>
+                                      </div>
+                                    ),
+                                    th: ({ children }) => (
+                                      <th className="border border-gray-300 bg-gray-100 px-2 py-1 text-left font-semibold">
+                                        {children}
+                                      </th>
+                                    ),
+                                    td: ({ children }) => (
+                                      <td className="border border-gray-300 px-2 py-1">
+                                        {children}
+                                      </td>
+                                    ),
+                                  }}
+                                >
+                                  {it.summary}
+                                </ReactMarkdown>
+                              </div>
                             </div>
                           </details>
 
@@ -525,8 +593,73 @@ export default function Dashboard() {
                             <summary className="cursor-pointer font-medium text-blue-600 hover:text-blue-800 transition-colors">
                               View Summary
                             </summary>
-                            <div className="mt-1 sm:mt-2 p-2 sm:p-3 bg-gray-50 rounded-lg whitespace-pre-wrap">
-                              {it.summary}
+                            <div className="mt-1 sm:mt-2 p-2 sm:p-3 bg-gray-50 rounded-lg">
+                              <div className="markdown prose prose-sm max-w-none text-gray-900">
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkGfm, remarkBreaks]}
+                                  components={{
+                                    h1: ({ children }) => (
+                                      <h1 className="text-lg font-bold mb-3 pb-1 border-b border-gray-300">
+                                        {children}
+                                      </h1>
+                                    ),
+                                    h2: ({ children }) => (
+                                      <h2 className="text-base font-semibold mb-2 pb-1 border-b border-gray-200">
+                                        {children}
+                                      </h2>
+                                    ),
+                                    h3: ({ children }) => (
+                                      <h3 className="text-sm font-semibold mb-2">
+                                        {children}
+                                      </h3>
+                                    ),
+                                    p: ({ children }) => (
+                                      <p className="mb-2 leading-relaxed">
+                                        {children}
+                                      </p>
+                                    ),
+                                    ul: ({ children }) => (
+                                      <ul className="mb-3 ml-4 list-disc space-y-1">
+                                        {children}
+                                      </ul>
+                                    ),
+                                    ol: ({ children }) => (
+                                      <ol className="mb-3 ml-4 list-decimal space-y-1">
+                                        {children}
+                                      </ol>
+                                    ),
+                                    li: ({ children }) => (
+                                      <li className="leading-relaxed">
+                                        {children}
+                                      </li>
+                                    ),
+                                    strong: ({ children }) => (
+                                      <strong className="font-semibold">
+                                        {children}
+                                      </strong>
+                                    ),
+                                    table: ({ children }) => (
+                                      <div className="overflow-x-auto mb-3">
+                                        <table className="min-w-full border-collapse border border-gray-300 text-xs">
+                                          {children}
+                                        </table>
+                                      </div>
+                                    ),
+                                    th: ({ children }) => (
+                                      <th className="border border-gray-300 bg-gray-100 px-2 py-1 text-left font-semibold">
+                                        {children}
+                                      </th>
+                                    ),
+                                    td: ({ children }) => (
+                                      <td className="border border-gray-300 px-2 py-1">
+                                        {children}
+                                      </td>
+                                    ),
+                                  }}
+                                >
+                                  {it.summary}
+                                </ReactMarkdown>
+                              </div>
                             </div>
                           </details>
 

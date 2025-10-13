@@ -18,6 +18,11 @@ export async function uploadDocumentForVectorSearch(
   metadata = {}
 ) {
   const fileId = uuidv4();
+  const startTime = Date.now();
+
+  console.log(
+    `[Upload] 🚀 Starting upload process for ${file.originalname} (${file.size} bytes)...`
+  );
   const gridBucket = getVectorGridBucket();
   const RawDocument = getRawDocumentModel();
   const DocumentSummary = getDocumentSummaryModel();
@@ -58,6 +63,9 @@ export async function uploadDocumentForVectorSearch(
     await rawDocument.save();
 
     // Step 3: Extract text content
+    console.log(
+      `[Upload] Step 3: Extracting text from ${file.originalname}...`
+    );
     let extractedText = "";
     let extractionSuccess = false;
 
@@ -75,7 +83,7 @@ export async function uploadDocumentForVectorSearch(
         rawDocument.processing_status = "processing";
         await rawDocument.save();
         console.log(
-          "Text extraction successful, content length:",
+          `[Upload] Text extraction successful for ${file.originalname}, content length:`,
           extractedText.length
         );
       } else {
@@ -110,6 +118,9 @@ The document has been uploaded and processed for metadata extraction and AI anal
     }
 
     // Step 4: Process with AI (summarization, tagging, embedding)
+    console.log(
+      `[Upload] Step 4: Processing ${file.originalname} with AI (this may take 30-60 seconds)...`
+    );
     try {
       const aiProcessedData = await processCompleteDocument(
         extractedText,
@@ -118,6 +129,9 @@ The document has been uploaded and processed for metadata extraction and AI anal
       );
 
       // Step 5: Create DocumentSummary record
+      console.log(
+        `[Upload] Step 5: Saving processed data for ${file.originalname}...`
+      );
       const documentSummary = new DocumentSummary({
         file_id: fileId,
         summary_text: aiProcessedData.summary,
@@ -139,9 +153,17 @@ The document has been uploaded and processed for metadata extraction and AI anal
       await documentSummary.save();
 
       // Step 6: Update RawDocument status
+      console.log(
+        `[Upload] Step 6: Finalizing upload for ${file.originalname}...`
+      );
       rawDocument.processing_status = "completed";
       await rawDocument.save();
 
+      console.log(
+        `[Upload] ✅ Successfully processed ${file.originalname} in ${
+          Date.now() - startTime
+        }ms`
+      );
       return {
         success: true,
         file_id: fileId,
