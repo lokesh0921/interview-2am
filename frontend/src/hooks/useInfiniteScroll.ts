@@ -20,7 +20,8 @@ export const useInfiniteScroll = (
   const observer = useRef<IntersectionObserver | null>(null);
   const isFetchingRef = useRef(false);
 
-  const { threshold = 1.0, rootMargin = "100px" } = options;
+  // Trigger earlier to avoid waiting until the sentinel is fully visible
+  const { threshold = 0.25, rootMargin = "300px" } = options;
 
   const lastElementRef = useCallback(
     (node: HTMLElement | null) => {

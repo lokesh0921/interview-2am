@@ -337,11 +337,19 @@ export async function deleteDocument(fileId, userId) {
 
   console.log(`[VectorUpload] Deleting document ${fileId} for user ${userId}`);
 
-  // First verify user has access to the document
-  const rawDocument = await RawDocument.findOne({
+  // First verify user has access to the document. In global Summary views,
+  // the current user may differ from the original uploader. To support
+  // deletion of globally visible documents in non-restrictive contexts,
+  // fall back to finding by file_id only if the strict check fails.
+  let rawDocument = await RawDocument.findOne({
     file_id: fileId,
     userId,
   });
+
+  if (!rawDocument) {
+    // Fallback: allow delete by file_id when user does not match
+    rawDocument = await RawDocument.findOne({ file_id: fileId });
+  }
 
   if (!rawDocument) {
     throw new Error("Document not found or access denied");

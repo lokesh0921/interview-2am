@@ -4,6 +4,7 @@ import React, {
   useReducer,
   useEffect,
   ReactNode,
+  useCallback,
 } from "react";
 
 // Types for different page states
@@ -193,6 +194,9 @@ function appStateReducer(state: AppState, action: AppStateAction): AppState {
         sidebarCollapsed: action.payload,
       };
     case "UPDATE_ACTIVE_PAGE":
+      if (state.lastActivePage === action.payload) {
+        return state; // avoid unnecessary updates to prevent loops
+      }
       return {
         ...state,
         lastActivePage: action.payload,
@@ -298,25 +302,28 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, [state]);
 
   // Helper functions
-  const updateVectorSearch = (payload: Partial<VectorSearchState>) => {
-    dispatch({ type: "UPDATE_VECTOR_SEARCH", payload });
-  };
+  const updateVectorSearch = useCallback(
+    (payload: Partial<VectorSearchState>) => {
+      dispatch({ type: "UPDATE_VECTOR_SEARCH", payload });
+    },
+    []
+  );
 
-  const updateUpload = (payload: Partial<UploadState>) => {
+  const updateUpload = useCallback((payload: Partial<UploadState>) => {
     dispatch({ type: "UPDATE_UPLOAD", payload });
-  };
+  }, []);
 
-  const updateDashboard = (payload: Partial<DashboardState>) => {
+  const updateDashboard = useCallback((payload: Partial<DashboardState>) => {
     dispatch({ type: "UPDATE_DASHBOARD", payload });
-  };
+  }, []);
 
-  const updateSummary = (payload: Partial<SummaryState>) => {
+  const updateSummary = useCallback((payload: Partial<SummaryState>) => {
     dispatch({ type: "UPDATE_SUMMARY", payload });
-  };
+  }, []);
 
-  const resetPageState = (page: string) => {
+  const resetPageState = useCallback((page: string) => {
     dispatch({ type: "RESET_PAGE_STATE", payload: page });
-  };
+  }, []);
 
   const value = {
     state,
@@ -388,11 +395,19 @@ export function useGlobalSettings() {
     theme: state.theme,
     sidebarCollapsed: state.sidebarCollapsed,
     lastActivePage: state.lastActivePage,
-    updateTheme: (theme: "light" | "dark") =>
-      dispatch({ type: "UPDATE_THEME", payload: theme }),
-    updateSidebar: (collapsed: boolean) =>
-      dispatch({ type: "UPDATE_SIDEBAR", payload: collapsed }),
-    updateActivePage: (page: string) =>
-      dispatch({ type: "UPDATE_ACTIVE_PAGE", payload: page }),
+    updateTheme: useCallback(
+      (theme: "light" | "dark") =>
+        dispatch({ type: "UPDATE_THEME", payload: theme }),
+      []
+    ),
+    updateSidebar: useCallback(
+      (collapsed: boolean) =>
+        dispatch({ type: "UPDATE_SIDEBAR", payload: collapsed }),
+      []
+    ),
+    updateActivePage: useCallback(
+      (page: string) => dispatch({ type: "UPDATE_ACTIVE_PAGE", payload: page }),
+      []
+    ),
   };
 }

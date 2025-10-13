@@ -197,3 +197,57 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
   opacity: 1;
 }
+
+/* Markdown rendering enhancements for Summary page */
+.markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5rem 0 1rem 0;
+}
+
+.markdown thead th {
+  background-color: #f3f4f6;
+  font-weight: 600;
+}
+
+.dark .markdown thead th {
+  background-color: #111827;
+}
+
+.markdown th,
+.markdown td {
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0.75rem;
+  vertical-align: top;
+}
+
+.dark .markdown th,
+.dark .markdown td {
+  border-color: #374151;
+}
+
+.markdown tbody tr:nth-child(odd) {
+  background-color: #fafafa;
+}
+
+.dark .markdown tbody tr:nth-child(odd) {
+  background-color: #0b1224;
+}
+
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown p,
+.markdown ul,
+.markdown ol {
+  margin: 0.5rem 0;
+}
+
+.markdown ul,
+.markdown ol {
+  padding-left: 1.25rem;
+}

@@ -4,8 +4,11 @@ import Header from "@/components/Header";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import { SummaryItemSkeleton } from "../components/ui/skeleton";
 import { toast } from "../hooks/use-toast";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import ConfirmationDialog from "../components/ui/confirmation-dialog";
-import { Trash2, Search, X } from "lucide-react";
+import { Trash2, Search, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import {
@@ -15,6 +18,13 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+
+// Local storage cache keys for non-search summary list hydration
+const SUMMARY_CACHE_ITEMS_KEY = "summary-cache-items";
+const SUMMARY_CACHE_PAGE_KEY = "summary-cache-current-page";
+const SUMMARY_CACHE_HAS_MORE_KEY = "summary-cache-has-more";
+const SUMMARY_CACHE_TOTAL_KEY = "summary-cache-total-items";
+const SUMMARY_CACHE_TIMESTAMP_KEY = "summary-cache-timestamp";
 
 interface FileItem {
   _id: string;
@@ -70,6 +80,9 @@ export default function Summary() {
     item: FileItem | null;
   }>({ isOpen: false, item: null });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [expandedRawIds, setExpandedRawIds] = useState<Record<string, boolean>>(
+    {}
+  );
 
   // Search functionality with state persistence
   const [searchQuery, setSearchQuery] = useState(() => {
@@ -325,12 +338,61 @@ export default function Summary() {
           JSON.parse(savedResults).length
         } results`,
       });
+      // Ensure we don't show skeleton when restoring search state
+      setLoading(false);
       return;
     }
 
-    // No saved search state, load regular items
+    // Try hydrating list from local storage cache to avoid skeleton on revisit
+    try {
+      const cachedItemsRaw = localStorage.getItem(SUMMARY_CACHE_ITEMS_KEY);
+      const cachedPageRaw = localStorage.getItem(SUMMARY_CACHE_PAGE_KEY);
+      const cachedHasMoreRaw = localStorage.getItem(SUMMARY_CACHE_HAS_MORE_KEY);
+      const cachedTotalRaw = localStorage.getItem(SUMMARY_CACHE_TOTAL_KEY);
+
+      if (cachedItemsRaw) {
+        const cachedItems: FileItem[] = JSON.parse(cachedItemsRaw);
+        const cachedPage = cachedPageRaw ? parseInt(cachedPageRaw) : 1;
+        const cachedHasMore = cachedHasMoreRaw === "true";
+        const cachedTotal = cachedTotalRaw ? parseInt(cachedTotalRaw) : 0;
+
+        if (Array.isArray(cachedItems) && cachedItems.length > 0) {
+          console.log("[Summary] Hydrating from cache", {
+            cachedLen: cachedItems.length,
+            cachedPage,
+            cachedHasMore,
+            cachedTotal,
+          });
+          setItems(cachedItems);
+          setCurrentPage(cachedPage);
+          setHasMore(cachedHasMore);
+          setTotalItems(cachedTotal);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("[Summary] Failed to hydrate from cache", e);
+    }
+
+    // No saved search state and no cache, load regular items
     loadItems(1, true);
   }, [loadItems]);
+
+  // Persist list cache whenever list state changes (non-search)
+  useEffect(() => {
+    if (!searchMode) {
+      try {
+        localStorage.setItem(SUMMARY_CACHE_ITEMS_KEY, JSON.stringify(items));
+        localStorage.setItem(SUMMARY_CACHE_PAGE_KEY, String(currentPage));
+        localStorage.setItem(SUMMARY_CACHE_HAS_MORE_KEY, String(hasMore));
+        localStorage.setItem(SUMMARY_CACHE_TOTAL_KEY, String(totalItems));
+        localStorage.setItem(SUMMARY_CACHE_TIMESTAMP_KEY, String(Date.now()));
+      } catch (e) {
+        console.warn("[Summary] Failed to persist cache", e);
+      }
+    }
+  }, [items, currentPage, hasMore, totalItems, searchMode]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -346,6 +408,30 @@ export default function Summary() {
       });
     }
     // Could add a toast notification here
+  };
+
+  // Lightweight formatter to make raw text more readable in Markdown:
+  // - Promote obvious section titles (lines ending with ':' or ALL CAPS) to ### headings
+  // - Ensure a blank line between paragraphs
+  const formatRawAsMarkdown = (raw: string | undefined): string => {
+    if (!raw) return "";
+    const lines = raw.split(/\r?\n/);
+    const formatted = lines.map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return ""; // keep blank line for paragraph spacing
+      const isAllCaps = /^(?:[A-Z0-9&\-/\s]{3,})$/.test(trimmed);
+      const looksLikeHeader = /[:：]$/.test(trimmed) || isAllCaps;
+      if (looksLikeHeader) {
+        return `### ${trimmed.replace(/[:：]$/, "")}`;
+      }
+      return trimmed;
+    });
+    // Collapse multiple blank lines to a single blank line
+    return formatted.join("\n").replace(/\n{3,}/g, "\n\n");
+  };
+
+  const toggleRawExpanded = (id: string) => {
+    setExpandedRawIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const downloadJson = (item: FileItem) => {
@@ -892,29 +978,60 @@ export default function Summary() {
                     </div>
                   </div>
 
-                  {/* Card Body */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    {/* Raw Data Section */}
-                    <div>
-                      <h4 className="font-medium mb-2 text-gray-700 dark:text-gray-300">
-                        Raw Data
-                      </h4>
-                      <div className="bg-gray-100 dark:bg-[#010613] rounded-lg p-3 h-96 overflow-y-auto">
-                        <pre className="text-xs whitespace-pre-wrap text-gray-900 dark:text-gray-100">
-                          {item.text || "No raw data available"}
-                        </pre>
-                      </div>
-                    </div>
-
+                  {/* Card Body - Summary above, Raw below (collapsible) */}
+                  <div className="flex flex-col gap-4 mb-4">
                     {/* Summary Section */}
                     <div>
                       <h4 className="font-medium mb-2 text-gray-700 dark:text-gray-300">
                         Summary
                       </h4>
-                      <div className="bg-gray-100 dark:bg-[#010613] rounded-lg p-3 h-96 overflow-y-auto">
-                        <p className="text-xs text-gray-900 dark:text-gray-100">
+                      <div className="markdown bg-gray-100 dark:bg-[#010613] rounded-lg p-4 prose prose-sm dark:prose-invert max-w-none">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                        >
                           {item.summary || "No summary available"}
-                        </p>
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+
+                    {/* Raw Data Section (collapsible) */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-gray-700 dark:text-gray-300">
+                          Raw Data
+                        </h4>
+                        <button
+                          onClick={() => toggleRawExpanded(item._id)}
+                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+                          title={
+                            expandedRawIds[item._id] ? "Collapse" : "Expand"
+                          }
+                        >
+                          {expandedRawIds[item._id] ? (
+                            <>
+                              <ChevronUp className="h-3 w-3" /> Collapse
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="h-3 w-3" /> Expand
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <div
+                        className={`markdown bg-gray-100 dark:bg-[#010613] rounded-lg p-4 prose prose-sm dark:prose-invert max-w-none transition-[max-height] duration-300 ease-in-out overflow-hidden ${
+                          expandedRawIds[item._id]
+                            ? "max-h-[28rem] overflow-y-auto"
+                            : "max-h-16"
+                        }`}
+                      >
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                        >
+                          {formatRawAsMarkdown(item.text) ||
+                            "No raw data available"}
+                        </ReactMarkdown>
                       </div>
                     </div>
                   </div>

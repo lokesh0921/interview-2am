@@ -11,8 +11,9 @@ export function useNavigationState() {
   const { updateActivePage } = useGlobalSettings();
 
   useEffect(() => {
+    // Only update if path actually changed to avoid render loops
     updateActivePage(location.pathname);
-  }, [location.pathname, updateActivePage]);
+  }, [location.pathname]);
 }
 
 /**

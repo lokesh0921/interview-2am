@@ -668,6 +668,7 @@ router.get("/all-documents", authMiddleware.required, async (req, res) => {
         mime_type: doc.mime_type,
         upload_date: doc.upload_date,
         processing_status: doc.processing_status,
+        owner_user_id: doc.userId,
       },
       created_at: doc.upload_date,
     }));

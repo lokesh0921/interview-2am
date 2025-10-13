@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import mammoth from "mammoth";
 
-// Configure PDF.js worker
+// Configure PDF.js worker - prefer local worker served from /public for reliability
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
 
 interface FilePreviewProps {
@@ -51,10 +51,10 @@ export default function FilePreview({
   };
 
   const detectFileType = (file: File): PreviewType => {
-    const type = file.type.toLowerCase();
-    const name = file.name.toLowerCase();
+    const type = (file.type || "").toLowerCase();
+    const name = (file.name || "").toLowerCase();
 
-    if (type.includes("pdf")) {
+    if (type.includes("pdf") || name.endsWith(".pdf")) {
       return "pdf";
     } else if (
       type.includes("word") ||
@@ -133,8 +133,8 @@ export default function FilePreview({
         default:
           setPreviewError("Preview not available for this file type.");
       }
-    } catch (error) {
-      console.error("Preview error:", error);
+    } catch (err) {
+      console.error("Preview error:", err);
       setPreviewError("Failed to load preview. Please try again.");
     } finally {
       setPreviewLoading(false);
@@ -157,9 +157,10 @@ export default function FilePreview({
       if (result.messages.length > 0) {
         console.warn("Word conversion warnings:", result.messages);
       }
-    } catch (error) {
-      console.error("Word conversion error:", error);
-      throw new Error(`Failed to convert Word document: ${error.message}`);
+    } catch (err) {
+      console.error("Word conversion error:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Failed to convert Word document: ${message}`);
     }
   };
 
@@ -590,10 +591,6 @@ export default function FilePreview({
                             </p>
                           </div>
                         }
-                        options={{
-                          cMapUrl: `https://unpkg.com/pdfjs-dist@5.3.93/cmaps/`,
-                          cMapPacked: true,
-                        }}
                       >
                         <Page
                           pageNumber={pageNumber}
