@@ -396,24 +396,7 @@ router.post("/ask", authMiddleware.required, async (req, res) => {
     // Step 3: Use AI to answer the question based on retrieved content
     const answer = await generateAnswer(question, finalContent);
 
-    // Fallback: If the LLM returns an empty answer, synthesize key points from summaries
-    if (!answer || !String(answer).trim()) {
-      console.warn(
-        `[VectorSearch API] Empty answer from LLM. Falling back to synthesized key points.`
-      );
-      const bullets = finalResults
-        .map((doc) => {
-          const text = (doc.summary_text || "").replace(/\n+/g, " ").trim();
-          if (!text) return null;
-          const snippet = text.length > 600 ? text.slice(0, 600) + "..." : text;
-          return `- ${doc.filename}: ${snippet}`;
-        })
-        .filter(Boolean)
-        .slice(0, 8)
-        .join("\n");
-      answer =
-        bullets || "No direct answer generated. Try rephrasing your question.";
-    }
+    // No fallback: return model output as-is per product requirement
 
     console.log(`[VectorSearch API] Answer generated successfully`);
 

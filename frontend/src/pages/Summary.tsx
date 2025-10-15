@@ -179,7 +179,7 @@ export default function Summary() {
     [searchType, toast]
   );
 
-  const clearSearch = () => {
+  const clearSearch = async () => {
     setSearchQuery("");
     setSearchResults([]);
     setSearchMode(false);
@@ -193,6 +193,13 @@ export default function Summary() {
     localStorage.removeItem("summary-search-page");
     localStorage.removeItem("summary-search-has-more");
     localStorage.removeItem("summary-search-total");
+
+    // Reload default summary list (page 1) like initial load
+    try {
+      await loadItems(1, true);
+    } catch (e) {
+      // Swallow; loadItems already logs error and sets state
+    }
   };
 
   // Save search state to localStorage whenever it changes
