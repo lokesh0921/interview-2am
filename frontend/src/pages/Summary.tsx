@@ -506,7 +506,7 @@ export default function Summary() {
               users (Global Access).
             </p>
           </div>
-          {!searchMode && totalItems > 0 && (
+          {/* {!searchMode && totalItems > 0 && (
             <div className="text-sm text-gray-500 dark:text-gray-400">
               Showing {items.length} of {totalItems} documents
               <div className="text-xs mt-1">
@@ -524,7 +524,7 @@ export default function Summary() {
                 {isFetching ? "Loading..." : "Load More (Debug)"}
               </button>
             </div>
-          )}
+          )} */}
           {searchMode && searchTotal > 0 && (
             <div className="text-sm text-gray-500 dark:text-gray-400">
               Found {searchTotal} results for "{searchQuery}"

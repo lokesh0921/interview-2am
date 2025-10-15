@@ -538,22 +538,22 @@ export default function VectorSearch() {
 
                   {/* Action Buttons - Stack on mobile */}
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <Button
+                    {/* <Button
                       onClick={handleSimpleSearch}
                       disabled={isSearching}
                       variant="outline"
                       className="w-full sm:w-auto px-4"
                     >
                       Simple Search
-                    </Button>
-                    <Button
+                    </Button> */}
+                    {/* <Button
                       onClick={handleDebugCheck}
                       disabled={isSearching}
                       variant="outline"
                       className="w-full sm:w-auto px-4"
                     >
                       Debug
-                    </Button>
+                    </Button> */}
                   </div>
                 </div>
 

@@ -606,7 +606,7 @@ export default function VectorSearchWithState() {
 
                   {/* Action Buttons - Stack on mobile */}
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <Button
+                    {/* <Button
                       onClick={handleSimpleSearch}
                       variant="outline"
                       size="sm"
@@ -623,7 +623,7 @@ export default function VectorSearchWithState() {
                       className="w-full sm:w-auto"
                     >
                       Debug
-                    </Button>
+                    </Button> */}
                   </div>
                 </div>
 

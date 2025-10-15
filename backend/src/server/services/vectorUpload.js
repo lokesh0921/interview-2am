@@ -214,10 +214,17 @@ The document has been uploaded and processed for metadata extraction and AI anal
  */
 export async function getRawDocument(fileId, userId) {
   const RawDocument = getRawDocumentModel();
-  const rawDocument = await RawDocument.findOne({
+  // Try strict user-ownership match first
+  let rawDocument = await RawDocument.findOne({
     file_id: fileId,
     userId,
   });
+
+  // Fallback: allow access by file_id only for globally visible contexts
+  // This supports Summary/Dashboard where documents are globally listed.
+  if (!rawDocument) {
+    rawDocument = await RawDocument.findOne({ file_id: fileId });
+  }
 
   if (!rawDocument) {
     throw new Error("Document not found or access denied");
@@ -263,10 +270,16 @@ export async function getDocumentSummary(fileId, userId) {
  */
 export async function getFileContent(fileId, userId) {
   const RawDocument = getRawDocumentModel();
-  const rawDocument = await RawDocument.findOne({
+  // Try strict user match
+  let rawDocument = await RawDocument.findOne({
     file_id: fileId,
     userId,
   });
+
+  // Fallback to file_id only for global preview/download
+  if (!rawDocument) {
+    rawDocument = await RawDocument.findOne({ file_id: fileId });
+  }
 
   if (!rawDocument) {
     throw new Error("Document not found or access denied");
