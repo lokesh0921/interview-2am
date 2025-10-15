@@ -17,6 +17,25 @@ import {
 import { generateAnswer } from "../services/vectorAi.js";
 import { authMiddleware } from "../middleware/auth.js";
 
+// Simple in-memory caches with TTL (per-process)
+const ASK_CACHE = new Map();
+const SIMPLE_CACHE = new Map();
+const CACHE_TTL_MS = 60_000; // 60s
+
+function getCache(map, key) {
+  const entry = map.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.exp) {
+    map.delete(key);
+    return null;
+  }
+  return entry.val;
+}
+
+function setCache(map, key, val) {
+  map.set(key, { val, exp: Date.now() + CACHE_TTL_MS });
+}
+
 /**
  * Perform keyword-based fallback search when semantic search fails
  * @param {string} question - The question to search for
@@ -236,6 +255,16 @@ router.post("/ask", authMiddleware.required, async (req, res) => {
       return res.status(400).json({ error: "Question is required" });
     }
 
+    // Pull tunables (with safe caps)
+    const requestedTopK = Math.min(parseInt(req.body?.top_k || 3), 10);
+    const minScoreReq = Number(req.body?.min_score ?? 0.3);
+    const searchLimit = Math.max(requestedTopK * 4, 12); // broader pool for rerank
+
+    // Try cache first
+    const cacheKey = `${userId}|${question}|${requestedTopK}|${minScoreReq}`;
+    const cached = getCache(ASK_CACHE, cacheKey);
+    if (cached) return res.json(cached);
+
     // Step 1: Find relevant documents using semantic search with progressive fallback
     console.log(`[VectorSearch API] Finding relevant documents...`);
 
@@ -245,8 +274,8 @@ router.post("/ask", authMiddleware.required, async (req, res) => {
 
     // First attempt: Standard search with moderate threshold
     searchResults = await semanticSearch(question, userId, {
-      limit: 10, // Increased to get more candidates
-      minScore: 0.3, // Lowered from 0.5 for broader matching
+      limit: searchLimit,
+      minScore: minScoreReq,
       includeMetadata: true,
     });
 
@@ -275,8 +304,8 @@ router.post("/ask", authMiddleware.required, async (req, res) => {
       );
     }
 
-    // Increase document limit for better coverage
-    finalResults = relevantResults.slice(0, 5);
+    // Keep only top K for answer generation
+    finalResults = relevantResults.slice(0, requestedTopK);
 
     console.log(
       `[VectorSearch API] Found ${searchResults.results.length} total documents, ${relevantResults.length} relevant, using ${finalResults.length} for answer`
@@ -362,7 +391,7 @@ Raw Content: ${truncatedRaw}`;
 
     console.log(`[VectorSearch API] Answer generated successfully`);
 
-    res.json({
+    const responsePayload = {
       success: true,
       question,
       answer,
@@ -375,7 +404,10 @@ Raw Content: ${truncatedRaw}`;
         file_size: doc.file_size,
         mime_type: doc.mime_type,
       })),
-    });
+    };
+
+    setCache(ASK_CACHE, cacheKey, responsePayload);
+    res.json(responsePayload);
   } catch (error) {
     console.error(`[VectorSearch API] Question-answering error:`, error);
     res.status(500).json({
@@ -570,6 +602,37 @@ router.get(
   }
 );
 
+// Preview file content (inline viewing)
+router.get(
+  "/documents/:fileId/preview",
+  authMiddleware.required,
+  async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      const userId = req.user.sub;
+
+      const document = await getRawDocument(fileId, userId);
+      const fileContent = await getFileContent(fileId, userId);
+
+      res.setHeader("Content-Type", document.mime_type);
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="${document.filename}"`
+      );
+      res.setHeader("Content-Length", fileContent.length);
+      res.setHeader("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
+
+      res.send(fileContent);
+    } catch (error) {
+      console.error("Preview error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to preview file",
+      });
+    }
+  }
+);
+
 // Get date range for documents
 router.get("/date-range", authMiddleware.required, async (req, res) => {
   try {
@@ -703,6 +766,15 @@ router.post("/simple-search", authMiddleware.required, async (req, res) => {
     const DocumentSummary = getDocumentSummaryModel();
     const RawDocument = getRawDocumentModel();
 
+    // Simple text search using MongoDB (global access)
+    const reqLimit = Math.min(parseInt(req.body?.limit || 10), 25);
+    const minScore = Number(req.body?.min_score ?? 0.1);
+
+    // Cache key
+    const key = `${userId}|${query}|${reqLimit}|${minScore}`;
+    const cached = getCache(SIMPLE_CACHE, key);
+    if (cached) return res.json(cached);
+
     // Simple text search using MongoDB text search (global access)
     const pipeline = [
       {
@@ -726,9 +798,7 @@ router.post("/simple-search", authMiddleware.required, async (req, res) => {
           ],
         },
       },
-      {
-        $limit: 10,
-      },
+      { $limit: reqLimit },
       {
         $project: {
           file_id: 1,
@@ -779,7 +849,7 @@ router.post("/simple-search", authMiddleware.required, async (req, res) => {
       });
     }
 
-    res.json({
+    const payload = {
       success: true,
       data: {
         query,
@@ -787,7 +857,10 @@ router.post("/simple-search", authMiddleware.required, async (req, res) => {
         total_results: results.length,
         search_type: "simple_text_search",
       },
-    });
+    };
+
+    setCache(SIMPLE_CACHE, key, payload);
+    res.json(payload);
   } catch (error) {
     console.error("Simple search error:", error);
     res.status(500).json({

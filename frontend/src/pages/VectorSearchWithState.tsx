@@ -21,6 +21,163 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
+import FilePreview from "../components/FilePreview";
+import { List } from "react-window";
+
+// Item data type for react-window List
+interface SearchResultItemData {
+  results: any[];
+  expandedFileIds: Record<string, boolean>;
+  visibleFileIds: Set<string>;
+  toggleFileExpanded: (id: string) => void;
+  formatFileSize: (bytes: number) => string;
+  formatDate: (date: string) => string;
+}
+
+// Individual search result item component for virtual scrolling
+interface SearchResultItemProps {
+  index: number;
+  style: React.CSSProperties;
+  data: SearchResultItemData;
+}
+
+const SearchResultItem = ({ index, style, data }: SearchResultItemProps) => {
+  const {
+    results,
+    expandedFileIds,
+    visibleFileIds,
+    toggleFileExpanded,
+    formatFileSize,
+    formatDate,
+  } = data;
+  const result = results[index];
+
+  return (
+    <div style={style} className="px-2">
+      <Card className="border-l-4 border-l-blue-500 h-full">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+            <div className="flex-1">
+              <CardTitle className="text-lg">{result.filename}</CardTitle>
+              <CardDescription>
+                {formatFileSize(result.file_size)} • Uploaded{" "}
+                {formatDate(result.upload_date)}
+                {result.reference_date &&
+                  ` • Reference: ${formatDate(result.reference_date)}`}
+              </CardDescription>
+            </div>
+            <div className="text-left sm:text-right">
+              <div className="text-sm font-medium">
+                {result.similarity_score && !isNaN(result.similarity_score)
+                  ? `${(result.similarity_score * 100).toFixed(1)}% match`
+                  : "No score"}
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="markdown text-sm mb-3 prose prose-sm dark:prose-invert max-w-none text-gray-900 dark:text-gray-100">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkBreaks]}
+              components={{
+                h1: ({ children }) => (
+                  <h1 className="text-lg font-bold mb-3 pb-1 border-b border-gray-300 dark:border-gray-600">
+                    {children}
+                  </h1>
+                ),
+                h2: ({ children }) => (
+                  <h2 className="text-base font-semibold mb-2 pb-1 border-b border-gray-200 dark:border-gray-700">
+                    {children}
+                  </h2>
+                ),
+                h3: ({ children }) => (
+                  <h3 className="text-sm font-semibold mb-2">{children}</h3>
+                ),
+                p: ({ children }) => (
+                  <p className="mb-2 leading-relaxed">{children}</p>
+                ),
+                ul: ({ children }) => (
+                  <ul className="mb-3 ml-4 list-disc space-y-1">{children}</ul>
+                ),
+                ol: ({ children }) => (
+                  <ol className="mb-3 ml-4 list-decimal space-y-1">
+                    {children}
+                  </ol>
+                ),
+                li: ({ children }) => (
+                  <li className="leading-relaxed">{children}</li>
+                ),
+                strong: ({ children }) => (
+                  <strong className="font-semibold text-gray-900 dark:text-gray-100">
+                    {children}
+                  </strong>
+                ),
+                table: ({ children }) => (
+                  <div className="overflow-x-auto mb-3">
+                    <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-600 text-xs">
+                      {children}
+                    </table>
+                  </div>
+                ),
+                th: ({ children }) => (
+                  <th className="border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 px-2 py-1 text-left font-semibold">
+                    {children}
+                  </th>
+                ),
+                td: ({ children }) => (
+                  <td className="border border-gray-300 dark:border-gray-600 px-2 py-1">
+                    {children}
+                  </td>
+                ),
+              }}
+            >
+              {result.summary_text}
+            </ReactMarkdown>
+          </div>
+
+          {/* Original File Preview Section */}
+          <div data-file-id={result.file_id}>
+            <FilePreview
+              fileId={result.file_id}
+              filename={result.filename}
+              mimeType={result.mime_type}
+              isExpanded={expandedFileIds[result.file_id]}
+              onToggle={() => toggleFileExpanded(result.file_id)}
+              isVisible={visibleFileIds.has(result.file_id)}
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {result.extracted_tags.industries.map((tag: string) => (
+              <span
+                key={tag}
+                className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full"
+              >
+                {tag}
+              </span>
+            ))}
+            {result.extracted_tags.sectors.map((tag: string) => (
+              <span
+                key={tag}
+                className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded-full"
+              >
+                {tag}
+              </span>
+            ))}
+            {result.extracted_tags.stock_names.map((tag: string) => (
+              <span
+                key={tag}
+                className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded-full"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
 export default function VectorSearchWithState() {
   const { session } = useSupabase();
@@ -36,6 +193,9 @@ export default function VectorSearchWithState() {
   // Local state for data that doesn't need persistence
   const [activeTab, setActiveTab] = useState<"search" | "upload">("search");
   const [isSearching, setIsSearching] = useState(false);
+  const [expandedFileIds, setExpandedFileIds] = useState<
+    Record<string, boolean>
+  >({});
 
   // Destructure global state for easier access
   const {
@@ -47,6 +207,54 @@ export default function VectorSearchWithState() {
     searchResults,
     lastSearchQuery,
   } = vectorSearchState;
+
+  // Limit concurrent file previews to prevent performance issues
+  const MAX_EXPANDED_PREVIEWS = 3;
+
+  const toggleFileExpanded = (id: string) => {
+    setExpandedFileIds((prev) => {
+      const newState = { ...prev, [id]: !prev[id] };
+      const expandedCount = Object.values(newState).filter(Boolean).length;
+
+      // If we're trying to expand more than the limit, close the oldest one
+      if (expandedCount > MAX_EXPANDED_PREVIEWS) {
+        const expandedIds = Object.entries(newState)
+          .filter(([_, isExpanded]) => isExpanded)
+          .map(([id, _]) => id);
+
+        if (expandedIds.length > 0) {
+          newState[expandedIds[0]] = false;
+        }
+      }
+
+      return newState;
+    });
+  };
+
+  // Intersection Observer for lazy loading
+  const [visibleFileIds, setVisibleFileIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const fileId = entry.target.getAttribute("data-file-id");
+            if (fileId) {
+              setVisibleFileIds((prev) => new Set([...prev, fileId]));
+            }
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: "50px" }
+    );
+
+    // Observe all file preview containers
+    const elements = document.querySelectorAll("[data-file-id]");
+    elements.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, [searchResults, questionAnswer]);
 
   // Global error handler for any unhandled errors
   useEffect(() => {
@@ -117,6 +325,8 @@ export default function VectorSearchWithState() {
         import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
       }/vector-search/ask`;
 
+      const ac = new AbortController();
+      const timeout = setTimeout(() => ac.abort(), 20000);
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
@@ -125,8 +335,14 @@ export default function VectorSearchWithState() {
         },
         body: JSON.stringify({
           question: searchQuery,
+          min_score: minScore,
+          top_k: 3,
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
         }),
+        signal: ac.signal,
       });
+      clearTimeout(timeout);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -181,11 +397,110 @@ export default function VectorSearchWithState() {
   };
 
   const handleSimpleSearch = async () => {
-    // Implementation for simple search
-    toast({
-      title: "Feature Coming Soon",
-      description: "Simple search functionality will be available soon",
-    });
+    try {
+      if (!searchQuery.trim()) {
+        toast({
+          title: "Input Required",
+          description: "Please enter a search query",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!session) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in to perform searches",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log(
+        `[VectorSearchWithState Frontend] Starting simple search for: "${searchQuery}"`
+      );
+      setIsSearching(true);
+
+      // Update global state with the search query
+      updateVectorSearch({ lastSearchQuery: searchQuery });
+
+      const token =
+        session.access_token || localStorage.getItem("sb:token") || "";
+      const apiUrl = `${
+        import.meta.env.VITE_API_BASE || "http://localhost:4001/api"
+      }/vector-search/simple-search`;
+
+      const ac = new AbortController();
+      const timeout = setTimeout(() => ac.abort(), 20000);
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: searchQuery,
+          min_score: minScore,
+          limit: 10,
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+        }),
+        signal: ac.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Server error (${response.status})`);
+      }
+
+      const responseData = await response.json();
+      console.log(
+        `[VectorSearchWithState Frontend] Simple search response:`,
+        responseData
+      );
+
+      if (!responseData || typeof responseData !== "object") {
+        throw new Error("Invalid response format from server");
+      }
+
+      if (responseData.success && responseData.data) {
+        const results = Array.isArray(responseData.data.results)
+          ? responseData.data.results
+          : [];
+        console.log(
+          `[VectorSearchWithState Frontend] Simple search found ${results.length} results`
+        );
+
+        // Update global state with search results
+        updateVectorSearch({
+          searchResults: results,
+          questionAnswer: null, // Clear old question answer
+        });
+
+        toast({
+          title: "Simple Search Complete",
+          description: `Found ${responseData.data.total_results || 0} results`,
+        });
+      } else {
+        throw new Error("Invalid response format");
+      }
+    } catch (error) {
+      console.error(
+        "[VectorSearchWithState Frontend] Simple search failed:",
+        error
+      );
+      updateVectorSearch({ searchResults: [] });
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      toast({
+        title: "Search Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -551,6 +866,24 @@ export default function VectorSearchWithState() {
                                     </ReactMarkdown>
                                   </div>
 
+                                  {/* Original File Preview Section */}
+                                  <div data-file-id={source.file_id}>
+                                    <FilePreview
+                                      fileId={source.file_id}
+                                      filename={source.filename}
+                                      mimeType={source.mime_type}
+                                      isExpanded={
+                                        expandedFileIds[source.file_id]
+                                      }
+                                      onToggle={() =>
+                                        toggleFileExpanded(source.file_id)
+                                      }
+                                      isVisible={visibleFileIds.has(
+                                        source.file_id
+                                      )}
+                                    />
+                                  </div>
+
                                   <div className="flex flex-col sm:flex-row gap-2">
                                     <Button
                                       size="sm"
@@ -687,136 +1020,193 @@ export default function VectorSearchWithState() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {searchResults.map((result) => (
-                      <Card
-                        key={result.file_id}
-                        className="border-l-4 border-l-blue-500"
-                      >
-                        <CardHeader className="pb-3">
-                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                            <div className="flex-1">
-                              <CardTitle className="text-lg">
-                                {result.filename}
-                              </CardTitle>
-                              <CardDescription>
-                                {formatFileSize(result.file_size)} • Uploaded{" "}
-                                {formatDate(result.upload_date)}
-                                {result.reference_date &&
-                                  ` • Reference: ${formatDate(
-                                    result.reference_date
-                                  )}`}
-                              </CardDescription>
-                            </div>
-                            <div className="text-left sm:text-right">
-                              <div className="text-sm font-medium">
-                                {result.similarity_score &&
-                                !isNaN(result.similarity_score)
-                                  ? `${(result.similarity_score * 100).toFixed(
-                                      1
-                                    )}% match`
-                                  : "No score"}
+                  {searchResults.length > 10 ? (
+                    // Use virtual scrolling for large result sets
+                    <List
+                      height={600}
+                      itemCount={searchResults.length}
+                      itemSize={400}
+                      itemData={
+                        {
+                          results: searchResults,
+                          expandedFileIds,
+                          visibleFileIds,
+                          toggleFileExpanded,
+                          formatFileSize,
+                          formatDate,
+                        } as SearchResultItemData
+                      }
+                    >
+                      {({
+                        index,
+                        style,
+                        data,
+                      }: {
+                        index: number;
+                        style: React.CSSProperties;
+                        data: SearchResultItemData;
+                      }) => (
+                        <SearchResultItem
+                          index={index}
+                          style={style}
+                          data={data}
+                        />
+                      )}
+                    </List>
+                  ) : (
+                    // Use regular rendering for small result sets
+                    <div className="space-y-4">
+                      {searchResults.map((result) => (
+                        <Card
+                          key={result.file_id}
+                          className="border-l-4 border-l-blue-500"
+                        >
+                          <CardHeader className="pb-3">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                              <div className="flex-1">
+                                <CardTitle className="text-lg">
+                                  {result.filename}
+                                </CardTitle>
+                                <CardDescription>
+                                  {formatFileSize(result.file_size)} • Uploaded{" "}
+                                  {formatDate(result.upload_date)}
+                                  {result.reference_date &&
+                                    ` • Reference: ${formatDate(
+                                      result.reference_date
+                                    )}`}
+                                </CardDescription>
+                              </div>
+                              <div className="text-left sm:text-right">
+                                <div className="text-sm font-medium">
+                                  {result.similarity_score &&
+                                  !isNaN(result.similarity_score)
+                                    ? `${(
+                                        result.similarity_score * 100
+                                      ).toFixed(1)}% match`
+                                    : "No score"}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="markdown text-sm mb-3 prose prose-sm dark:prose-invert max-w-none text-gray-900 dark:text-gray-100">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm, remarkBreaks]}
-                              components={{
-                                h1: ({ children }) => (
-                                  <h1 className="text-lg font-bold mb-3 pb-1 border-b border-gray-300 dark:border-gray-600">
-                                    {children}
-                                  </h1>
-                                ),
-                                h2: ({ children }) => (
-                                  <h2 className="text-base font-semibold mb-2 pb-1 border-b border-gray-200 dark:border-gray-700">
-                                    {children}
-                                  </h2>
-                                ),
-                                h3: ({ children }) => (
-                                  <h3 className="text-sm font-semibold mb-2">
-                                    {children}
-                                  </h3>
-                                ),
-                                p: ({ children }) => (
-                                  <p className="mb-2 leading-relaxed">
-                                    {children}
-                                  </p>
-                                ),
-                                ul: ({ children }) => (
-                                  <ul className="mb-3 ml-4 list-disc space-y-1">
-                                    {children}
-                                  </ul>
-                                ),
-                                ol: ({ children }) => (
-                                  <ol className="mb-3 ml-4 list-decimal space-y-1">
-                                    {children}
-                                  </ol>
-                                ),
-                                li: ({ children }) => (
-                                  <li className="leading-relaxed">
-                                    {children}
-                                  </li>
-                                ),
-                                strong: ({ children }) => (
-                                  <strong className="font-semibold text-gray-900 dark:text-gray-100">
-                                    {children}
-                                  </strong>
-                                ),
-                                table: ({ children }) => (
-                                  <div className="overflow-x-auto mb-3">
-                                    <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-600 text-xs">
+                          </CardHeader>
+                          <CardContent>
+                            <div className="markdown text-sm mb-3 prose prose-sm dark:prose-invert max-w-none text-gray-900 dark:text-gray-100">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm, remarkBreaks]}
+                                components={{
+                                  h1: ({ children }) => (
+                                    <h1 className="text-lg font-bold mb-3 pb-1 border-b border-gray-300 dark:border-gray-600">
                                       {children}
-                                    </table>
-                                  </div>
-                                ),
-                                th: ({ children }) => (
-                                  <th className="border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 px-2 py-1 text-left font-semibold">
-                                    {children}
-                                  </th>
-                                ),
-                                td: ({ children }) => (
-                                  <td className="border border-gray-300 dark:border-gray-600 px-2 py-1">
-                                    {children}
-                                  </td>
-                                ),
-                              }}
-                            >
-                              {result.summary_text}
-                            </ReactMarkdown>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {result.extracted_tags.industries.map((tag) => (
-                              <span
-                                key={tag}
-                                className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full"
+                                    </h1>
+                                  ),
+                                  h2: ({ children }) => (
+                                    <h2 className="text-base font-semibold mb-2 pb-1 border-b border-gray-200 dark:border-gray-700">
+                                      {children}
+                                    </h2>
+                                  ),
+                                  h3: ({ children }) => (
+                                    <h3 className="text-sm font-semibold mb-2">
+                                      {children}
+                                    </h3>
+                                  ),
+                                  p: ({ children }) => (
+                                    <p className="mb-2 leading-relaxed">
+                                      {children}
+                                    </p>
+                                  ),
+                                  ul: ({ children }) => (
+                                    <ul className="mb-3 ml-4 list-disc space-y-1">
+                                      {children}
+                                    </ul>
+                                  ),
+                                  ol: ({ children }) => (
+                                    <ol className="mb-3 ml-4 list-decimal space-y-1">
+                                      {children}
+                                    </ol>
+                                  ),
+                                  li: ({ children }) => (
+                                    <li className="leading-relaxed">
+                                      {children}
+                                    </li>
+                                  ),
+                                  strong: ({ children }) => (
+                                    <strong className="font-semibold text-gray-900 dark:text-gray-100">
+                                      {children}
+                                    </strong>
+                                  ),
+                                  table: ({ children }) => (
+                                    <div className="overflow-x-auto mb-3">
+                                      <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-600 text-xs">
+                                        {children}
+                                      </table>
+                                    </div>
+                                  ),
+                                  th: ({ children }) => (
+                                    <th className="border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 px-2 py-1 text-left font-semibold">
+                                      {children}
+                                    </th>
+                                  ),
+                                  td: ({ children }) => (
+                                    <td className="border border-gray-300 dark:border-gray-600 px-2 py-1">
+                                      {children}
+                                    </td>
+                                  ),
+                                }}
                               >
-                                {tag}
-                              </span>
-                            ))}
-                            {result.extracted_tags.sectors.map((tag) => (
-                              <span
-                                key={tag}
-                                className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded-full"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                            {result.extracted_tags.stock_names.map((tag) => (
-                              <span
-                                key={tag}
-                                className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded-full"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                                {result.summary_text}
+                              </ReactMarkdown>
+                            </div>
+
+                            {/* Original File Preview Section */}
+                            <div data-file-id={result.file_id}>
+                              <FilePreview
+                                fileId={result.file_id}
+                                filename={result.filename}
+                                mimeType={result.mime_type}
+                                isExpanded={expandedFileIds[result.file_id]}
+                                onToggle={() =>
+                                  toggleFileExpanded(result.file_id)
+                                }
+                                isVisible={visibleFileIds.has(result.file_id)}
+                              />
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              {result.extracted_tags.industries.map(
+                                (tag: string) => (
+                                  <span
+                                    key={tag}
+                                    className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full"
+                                  >
+                                    {tag}
+                                  </span>
+                                )
+                              )}
+                              {result.extracted_tags.sectors.map(
+                                (tag: string) => (
+                                  <span
+                                    key={tag}
+                                    className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded-full"
+                                  >
+                                    {tag}
+                                  </span>
+                                )
+                              )}
+                              {result.extracted_tags.stock_names.map(
+                                (tag: string) => (
+                                  <span
+                                    key={tag}
+                                    className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded-full"
+                                  >
+                                    {tag}
+                                  </span>
+                                )
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

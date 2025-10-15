@@ -8,7 +8,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import ConfirmationDialog from "../components/ui/confirmation-dialog";
-import { Trash2, Search, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Trash2, Search, X } from "lucide-react";
+import FilePreview from "../components/FilePreview";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import {
@@ -33,7 +34,13 @@ interface FileItem {
   categories: string[];
   summary: string;
   text?: string;
-  metadata?: Record<string, any>;
+  metadata?: {
+    file_size?: number;
+    mime_type?: string;
+    upload_date?: string;
+    processing_status?: string;
+    owner_user_id?: string;
+  };
   created_at: string;
 }
 
@@ -80,9 +87,9 @@ export default function Summary() {
     item: FileItem | null;
   }>({ isOpen: false, item: null });
   const [isDeleting, setIsDeleting] = useState(false);
-  const [expandedRawIds, setExpandedRawIds] = useState<Record<string, boolean>>(
-    {}
-  );
+  const [expandedFileIds, setExpandedFileIds] = useState<
+    Record<string, boolean>
+  >({});
 
   // Search functionality with state persistence
   const [searchQuery, setSearchQuery] = useState(() => {
@@ -410,28 +417,8 @@ export default function Summary() {
     // Could add a toast notification here
   };
 
-  // Lightweight formatter to make raw text more readable in Markdown:
-  // - Promote obvious section titles (lines ending with ':' or ALL CAPS) to ### headings
-  // - Ensure a blank line between paragraphs
-  const formatRawAsMarkdown = (raw: string | undefined): string => {
-    if (!raw) return "";
-    const lines = raw.split(/\r?\n/);
-    const formatted = lines.map((line) => {
-      const trimmed = line.trim();
-      if (!trimmed) return ""; // keep blank line for paragraph spacing
-      const isAllCaps = /^(?:[A-Z0-9&\-/\s]{3,})$/.test(trimmed);
-      const looksLikeHeader = /[:：]$/.test(trimmed) || isAllCaps;
-      if (looksLikeHeader) {
-        return `### ${trimmed.replace(/[:：]$/, "")}`;
-      }
-      return trimmed;
-    });
-    // Collapse multiple blank lines to a single blank line
-    return formatted.join("\n").replace(/\n{3,}/g, "\n\n");
-  };
-
-  const toggleRawExpanded = (id: string) => {
-    setExpandedRawIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleFileExpanded = (id: string) => {
+    setExpandedFileIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const downloadJson = (item: FileItem) => {
@@ -571,8 +558,8 @@ export default function Summary() {
                   }
                   className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 >
-                  <option value="tags">Tag Search</option>
-                  <option value="text">Full Text</option>
+                  <option value="tags">Full Text</option>
+                  <option value="text">Tag Search</option>
                 </select>
                 <Button
                   onClick={() => handleSearch(searchQuery, 1, true)}
@@ -804,23 +791,105 @@ export default function Summary() {
                       <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
                         Summary:
                       </h4>
-                      <div className="markdown text-sm text-gray-700 dark:text-gray-300 leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                      <div className="markdown bg-gray-50 dark:bg-[#010613] rounded-lg p-6 prose prose-sm dark:prose-invert max-w-none border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm, remarkBreaks]}
+                          components={{
+                            h1: ({ children }) => (
+                              <h1 className="text-2xl font-bold mb-4 pb-2 border-b border-gray-300 dark:border-gray-600">
+                                {children}
+                              </h1>
+                            ),
+                            h2: ({ children }) => (
+                              <h2 className="text-xl font-semibold mb-3 pb-1 border-b border-gray-200 dark:border-gray-700">
+                                {children}
+                              </h2>
+                            ),
+                            h3: ({ children }) => (
+                              <h3 className="text-lg font-semibold mb-2">
+                                {children}
+                              </h3>
+                            ),
+                            p: ({ children }) => (
+                              <p className="mb-3 leading-relaxed">{children}</p>
+                            ),
+                            ul: ({ children }) => (
+                              <ul className="mb-4 ml-6 list-disc space-y-1">
+                                {children}
+                              </ul>
+                            ),
+                            ol: ({ children }) => (
+                              <ol className="mb-4 ml-6 list-decimal space-y-1">
+                                {children}
+                              </ol>
+                            ),
+                            li: ({ children }) => (
+                              <li className="leading-relaxed">{children}</li>
+                            ),
+                            strong: ({ children }) => (
+                              <strong className="font-semibold text-gray-900 dark:text-gray-100">
+                                {children}
+                              </strong>
+                            ),
+                            table: ({ children }) => (
+                              <div className="overflow-x-auto mb-4">
+                                <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-600">
+                                  {children}
+                                </table>
+                              </div>
+                            ),
+                            th: ({ children }) => (
+                              <th className="border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-left font-semibold">
+                                {children}
+                              </th>
+                            ),
+                            td: ({ children }) => (
+                              <td className="border border-gray-300 dark:border-gray-600 px-3 py-2">
+                                {children}
+                              </td>
+                            ),
+                          }}
                         >
                           {result.summary_text}
                         </ReactMarkdown>
                       </div>
                     </div>
 
+                    {/* Original File Preview Section */}
+                    <FilePreview
+                      fileId={result.file_id}
+                      filename={result.filename}
+                      mimeType={result.mime_type}
+                      isExpanded={expandedFileIds[result._id]}
+                      onToggle={() => toggleFileExpanded(result._id)}
+                    />
+
                     {/* Action Buttons */}
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 pt-2 border-t dark:border-gray-700">
                       <button
-                        onClick={() => copyToClipboard(result.summary_text)}
-                        className="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 transition-colors"
+                        onMouseEnter={() => setWhatCopied("summary")}
+                        onClick={() =>
+                          copyToClipboard(result.summary_text || "")
+                        }
+                        className="px-3 py-1.5 bg-gray-100 dark:bg-gray-500 dark:hover:bg-gray-600 hover:bg-gray-200 text-gray-950 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
                       >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          />
+                        </svg>
                         Copy Summary
                       </button>
+
                       {result.comprehensive_summary && (
                         <button
                           onClick={() =>
@@ -1053,72 +1122,20 @@ export default function Summary() {
                       </div>
                     </div>
 
-                    {/* Raw Data Section (collapsible) */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-gray-700 dark:text-gray-300">
-                          Raw Data
-                        </h4>
-                        <button
-                          onClick={() => toggleRawExpanded(item._id)}
-                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
-                          title={
-                            expandedRawIds[item._id] ? "Collapse" : "Expand"
-                          }
-                        >
-                          {expandedRawIds[item._id] ? (
-                            <>
-                              <ChevronUp className="h-3 w-3" /> Collapse
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="h-3 w-3" /> Expand
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                      <div
-                        className={`markdown bg-gray-100 dark:bg-[#010613] rounded-lg p-4 prose prose-sm dark:prose-invert max-w-none transition-[max-height] duration-300 ease-in-out overflow-hidden ${
-                          expandedRawIds[item._id]
-                            ? "max-h-[28rem] overflow-y-auto"
-                            : "max-h-16"
-                        }`}
-                      >
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkBreaks]}
-                        >
-                          {formatRawAsMarkdown(item.text) ||
-                            "No raw data available"}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
+                    {/* Original File Preview Section */}
+                    <FilePreview
+                      fileId={item._id}
+                      filename={item.filename}
+                      mimeType={
+                        item.metadata?.mime_type || "application/octet-stream"
+                      }
+                      isExpanded={expandedFileIds[item._id]}
+                      onToggle={() => toggleFileExpanded(item._id)}
+                    />
                   </div>
 
                   {/* Card Footer - Actions */}
                   <div className="flex flex-wrap gap-2 pt-2 border-t dark:border-gray-700">
-                    <button
-                      onMouseEnter={() => setWhatCopied("raw")}
-                      onClick={() => copyToClipboard(item.text || "")}
-                      className="px-3 py-1.5 bg-gray-100 dark:bg-gray-500 dark:hover:bg-gray-600 hover:bg-gray-200 text-gray-950 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                        />
-                      </svg>
-                      Copy Raw
-                    </button>
-
                     <button
                       onMouseEnter={() => setWhatCopied("summary")}
                       onClick={() => copyToClipboard(item.summary || "")}

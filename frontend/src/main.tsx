@@ -14,6 +14,7 @@ import Protected from "./supabase/Protected";
 import { Toaster } from "@/components/ui/toaster";
 import Signup from "./pages/Signup";
 import { AppStateProvider } from "./contexts/AppStateContext";
+import VectorSearch from "./pages/VectorSearch";
 // import Auth from "./pages/Auth";
 
 const router = createBrowserRouter([
@@ -37,6 +38,7 @@ const router = createBrowserRouter([
     path: "/vector-search",
     element: (
       <Protected>
+        {/* <VectorSearch /> */}
         <VectorSearchWithState />
       </Protected>
     ),

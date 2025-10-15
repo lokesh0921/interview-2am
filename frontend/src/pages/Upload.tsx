@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useSupabase } from "../supabase/SupabaseProvider";
 import FileUploader from "../components/FileUploader";
-import FilePreview from "../components/FilePreview";
 import { useToast } from "../hooks/use-toast";
 import Header from "@/components/Header";
+import LocalFilePreview from "../components/LocalFilePreview";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -180,7 +180,7 @@ export default function Upload() {
                 {!showPreview ? (
                   <FileUploader onFilesSelected={handleFilesSelected} />
                 ) : files ? (
-                  <FilePreview
+                  <LocalFilePreview
                     files={files}
                     onConfirm={handlePreviewConfirm}
                     onCancel={handlePreviewCancel}

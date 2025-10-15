@@ -16,6 +16,7 @@ import Header from "@/components/Header";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
+import FilePreview from "../components/FilePreview";
 
 interface SearchResult {
   file_id: string;
@@ -101,11 +102,36 @@ export default function VectorSearch() {
 
   // Data state
   const [activeTab, setActiveTab] = useState<"search" | "upload">("search");
+  const [expandedFileIds, setExpandedFileIds] = useState<
+    Record<string, boolean>
+  >({});
 
   // Load initial data
   useEffect(() => {
     // No initial data loading needed without tags
   }, [session]);
+
+  const toggleFileExpanded = (id: string) => {
+    setExpandedFileIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // Auto-expand file previews when new results are loaded
+  const autoExpandFilePreviews = (results: any[]) => {
+    const newExpandedIds: Record<string, boolean> = {};
+    results.forEach((result) => {
+      if (result.file_id) {
+        newExpandedIds[result.file_id] = true;
+      }
+      if (result.sources) {
+        result.sources.forEach((source: any) => {
+          if (source.file_id) {
+            newExpandedIds[source.file_id] = true;
+          }
+        });
+      }
+    });
+    setExpandedFileIds((prev) => ({ ...prev, ...newExpandedIds }));
+  };
 
   const handleAskQuestion = async () => {
     try {
@@ -181,12 +207,18 @@ export default function VectorSearch() {
       }
 
       if (responseData.success) {
-        setQuestionAnswer({
+        const newQuestionAnswer = {
           question: responseData.question,
           answer: responseData.answer,
           sources: responseData.sources || [],
-        });
+        };
+        setQuestionAnswer(newQuestionAnswer);
         setSearchResults([]); // Clear old search results
+
+        // Auto-expand file previews for question answer sources
+        if (responseData.sources && responseData.sources.length > 0) {
+          autoExpandFilePreviews([{ sources: responseData.sources }]);
+        }
 
         toast({
           title: "Question Answered",
@@ -285,6 +317,12 @@ export default function VectorSearch() {
         );
 
         setSearchResults(results);
+
+        // Auto-expand file previews for search results
+        if (results.length > 0) {
+          autoExpandFilePreviews(results);
+        }
+
         toast({
           title: "Simple Search Complete",
           description: `Found ${responseData.data.total_results || 0} results`,
@@ -759,74 +797,147 @@ export default function VectorSearch() {
                                   </div>
                                 </CardHeader>
                                 <CardContent>
-                                  <div className="markdown text-sm mb-3 prose prose-sm dark:prose-invert max-w-none text-gray-900 dark:text-gray-100">
-                                    <ReactMarkdown
-                                      remarkPlugins={[remarkGfm, remarkBreaks]}
-                                      components={{
-                                        h1: ({ children }) => (
-                                          <h1 className="text-lg font-bold mb-3 pb-1 border-b border-gray-300 dark:border-gray-600">
-                                            {children}
-                                          </h1>
-                                        ),
-                                        h2: ({ children }) => (
-                                          <h2 className="text-base font-semibold mb-2 pb-1 border-b border-gray-200 dark:border-gray-700">
-                                            {children}
-                                          </h2>
-                                        ),
-                                        h3: ({ children }) => (
-                                          <h3 className="text-sm font-semibold mb-2">
-                                            {children}
-                                          </h3>
-                                        ),
-                                        p: ({ children }) => (
-                                          <p className="mb-2 leading-relaxed">
-                                            {children}
-                                          </p>
-                                        ),
-                                        ul: ({ children }) => (
-                                          <ul className="mb-3 ml-4 list-disc space-y-1">
-                                            {children}
-                                          </ul>
-                                        ),
-                                        ol: ({ children }) => (
-                                          <ol className="mb-3 ml-4 list-decimal space-y-1">
-                                            {children}
-                                          </ol>
-                                        ),
-                                        li: ({ children }) => (
-                                          <li className="leading-relaxed">
-                                            {children}
-                                          </li>
-                                        ),
-                                        strong: ({ children }) => (
-                                          <strong className="font-semibold text-gray-900 dark:text-gray-100">
-                                            {children}
-                                          </strong>
-                                        ),
-                                        table: ({ children }) => (
-                                          <div className="overflow-x-auto mb-3">
-                                            <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-600 text-xs">
+                                  {/* Summary Section */}
+                                  <div className="mb-4">
+                                    <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                                      Summary:
+                                    </h4>
+                                    <div className="markdown bg-gray-50 dark:bg-[#010613] rounded-lg p-6 prose prose-sm dark:prose-invert max-w-none border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100">
+                                      <ReactMarkdown
+                                        remarkPlugins={[
+                                          remarkGfm,
+                                          remarkBreaks,
+                                        ]}
+                                        components={{
+                                          h1: ({ children }) => (
+                                            <h1 className="text-2xl font-bold mb-4 pb-2 border-b border-gray-300 dark:border-gray-600">
                                               {children}
-                                            </table>
-                                          </div>
-                                        ),
-                                        th: ({ children }) => (
-                                          <th className="border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 px-2 py-1 text-left font-semibold">
-                                            {children}
-                                          </th>
-                                        ),
-                                        td: ({ children }) => (
-                                          <td className="border border-gray-300 dark:border-gray-600 px-2 py-1">
-                                            {children}
-                                          </td>
-                                        ),
-                                      }}
-                                    >
-                                      {source.summary}
-                                    </ReactMarkdown>
+                                            </h1>
+                                          ),
+                                          h2: ({ children }) => (
+                                            <h2 className="text-xl font-semibold mb-3 pb-1 border-b border-gray-200 dark:border-gray-700">
+                                              {children}
+                                            </h2>
+                                          ),
+                                          h3: ({ children }) => (
+                                            <h3 className="text-lg font-semibold mb-2">
+                                              {children}
+                                            </h3>
+                                          ),
+                                          p: ({ children }) => (
+                                            <p className="mb-3 leading-relaxed">
+                                              {children}
+                                            </p>
+                                          ),
+                                          ul: ({ children }) => (
+                                            <ul className="mb-4 ml-6 list-disc space-y-1">
+                                              {children}
+                                            </ul>
+                                          ),
+                                          ol: ({ children }) => (
+                                            <ol className="mb-4 ml-6 list-decimal space-y-1">
+                                              {children}
+                                            </ol>
+                                          ),
+                                          li: ({ children }) => (
+                                            <li className="leading-relaxed">
+                                              {children}
+                                            </li>
+                                          ),
+                                          strong: ({ children }) => (
+                                            <strong className="font-semibold text-gray-900 dark:text-gray-100">
+                                              {children}
+                                            </strong>
+                                          ),
+                                          table: ({ children }) => (
+                                            <div className="overflow-x-auto mb-4">
+                                              <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-600">
+                                                {children}
+                                              </table>
+                                            </div>
+                                          ),
+                                          th: ({ children }) => (
+                                            <th className="border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-left font-semibold">
+                                              {children}
+                                            </th>
+                                          ),
+                                          td: ({ children }) => (
+                                            <td className="border border-gray-300 dark:border-gray-600 px-3 py-2">
+                                              {children}
+                                            </td>
+                                          ),
+                                        }}
+                                      >
+                                        {source.summary}
+                                      </ReactMarkdown>
+                                    </div>
                                   </div>
 
-                                  <div className="flex flex-col sm:flex-row gap-2">
+                                  {/* Original File Preview Section */}
+                                  <FilePreview
+                                    fileId={source.file_id}
+                                    filename={source.filename}
+                                    mimeType={source.mime_type}
+                                    isExpanded={expandedFileIds[source.file_id]}
+                                    onToggle={() =>
+                                      toggleFileExpanded(source.file_id)
+                                    }
+                                  />
+
+                                  <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t dark:border-gray-700">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="w-full sm:w-auto"
+                                      onClick={async () => {
+                                        try {
+                                          const summaryText = source.summary;
+
+                                          if (
+                                            navigator.clipboard &&
+                                            navigator.clipboard.writeText
+                                          ) {
+                                            await navigator.clipboard.writeText(
+                                              summaryText
+                                            );
+                                            toast({
+                                              title: "Summary Copied",
+                                              description:
+                                                "Summary has been copied to clipboard",
+                                            });
+                                          } else {
+                                            const textArea =
+                                              document.createElement(
+                                                "textarea"
+                                              );
+                                            textArea.value = summaryText;
+                                            document.body.appendChild(textArea);
+                                            textArea.select();
+                                            document.execCommand("copy");
+                                            document.body.removeChild(textArea);
+
+                                            toast({
+                                              title: "Summary Copied",
+                                              description:
+                                                "Summary has been copied to clipboard (fallback method)",
+                                            });
+                                          }
+                                        } catch (error) {
+                                          console.error(
+                                            "Error copying summary:",
+                                            error
+                                          );
+                                          toast({
+                                            title: "Copy Failed",
+                                            description:
+                                              "Failed to copy summary to clipboard",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      Copy Summary
+                                    </Button>
                                     <Button
                                       size="sm"
                                       variant="outline"
@@ -885,59 +996,6 @@ export default function VectorSearch() {
                                       }}
                                     >
                                       Download File
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="w-full sm:w-auto"
-                                      onClick={async () => {
-                                        try {
-                                          const summaryText = source.summary;
-
-                                          if (
-                                            navigator.clipboard &&
-                                            navigator.clipboard.writeText
-                                          ) {
-                                            await navigator.clipboard.writeText(
-                                              summaryText
-                                            );
-                                            toast({
-                                              title: "Summary Copied",
-                                              description:
-                                                "Summary has been copied to clipboard",
-                                            });
-                                          } else {
-                                            const textArea =
-                                              document.createElement(
-                                                "textarea"
-                                              );
-                                            textArea.value = summaryText;
-                                            document.body.appendChild(textArea);
-                                            textArea.select();
-                                            document.execCommand("copy");
-                                            document.body.removeChild(textArea);
-
-                                            toast({
-                                              title: "Summary Copied",
-                                              description:
-                                                "Summary has been copied to clipboard (fallback method)",
-                                            });
-                                          }
-                                        } catch (error) {
-                                          console.error(
-                                            "Error copying summary:",
-                                            error
-                                          );
-                                          toast({
-                                            title: "Copy Failed",
-                                            description:
-                                              "Failed to copy summary to clipboard",
-                                            variant: "destructive",
-                                          });
-                                        }
-                                      }}
-                                    >
-                                      Copy Summary
                                     </Button>
                                   </div>
                                 </CardContent>
@@ -1034,9 +1092,120 @@ export default function VectorSearch() {
                           </div>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-sm mb-3">
-                            {result.summary_text || "No summary available"}
-                          </p>
+                          {/* Summary Section */}
+                          <div className="mb-4">
+                            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                              Summary:
+                            </h4>
+                            <div className="markdown bg-gray-50 dark:bg-[#010613] rounded-lg p-6 prose prose-sm dark:prose-invert max-w-none border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm, remarkBreaks]}
+                                components={{
+                                  h1: ({ children }) => (
+                                    <h1 className="text-2xl font-bold mb-4 pb-2 border-b border-gray-300 dark:border-gray-600">
+                                      {children}
+                                    </h1>
+                                  ),
+                                  h2: ({ children }) => (
+                                    <h2 className="text-xl font-semibold mb-3 pb-1 border-b border-gray-200 dark:border-gray-700">
+                                      {children}
+                                    </h2>
+                                  ),
+                                  h3: ({ children }) => (
+                                    <h3 className="text-lg font-semibold mb-2">
+                                      {children}
+                                    </h3>
+                                  ),
+                                  p: ({ children }) => (
+                                    <p className="mb-3 leading-relaxed">
+                                      {children}
+                                    </p>
+                                  ),
+                                  ul: ({ children }) => (
+                                    <ul className="mb-4 ml-6 list-disc space-y-1">
+                                      {children}
+                                    </ul>
+                                  ),
+                                  ol: ({ children }) => (
+                                    <ol className="mb-4 ml-6 list-decimal space-y-1">
+                                      {children}
+                                    </ol>
+                                  ),
+                                  li: ({ children }) => (
+                                    <li className="leading-relaxed">
+                                      {children}
+                                    </li>
+                                  ),
+                                  strong: ({ children }) => (
+                                    <strong className="font-semibold text-gray-900 dark:text-gray-100">
+                                      {children}
+                                    </strong>
+                                  ),
+                                  table: ({ children }) => (
+                                    <div className="overflow-x-auto mb-4">
+                                      <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-600">
+                                        {children}
+                                      </table>
+                                    </div>
+                                  ),
+                                  th: ({ children }) => (
+                                    <th className="border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-left font-semibold">
+                                      {children}
+                                    </th>
+                                  ),
+                                  td: ({ children }) => (
+                                    <td className="border border-gray-300 dark:border-gray-600 px-3 py-2">
+                                      {children}
+                                    </td>
+                                  ),
+                                }}
+                              >
+                                {result.summary_text || "No summary available"}
+                              </ReactMarkdown>
+                            </div>
+                          </div>
+
+                          {/* Original File Preview Section */}
+                          <FilePreview
+                            fileId={result.file_id}
+                            filename={result.filename}
+                            mimeType={result.mime_type}
+                            isExpanded={expandedFileIds[result.file_id]}
+                            onToggle={() => toggleFileExpanded(result.file_id)}
+                          />
+
+                          {/* Action Buttons */}
+                          <div className="flex flex-wrap gap-2 pt-2 border-t dark:border-gray-700">
+                            <button
+                              onClick={() => {
+                                const summaryText =
+                                  result.summary_text || "No summary available";
+                                navigator.clipboard.writeText(summaryText);
+                                toast({
+                                  title: "Summary Copied",
+                                  description:
+                                    "Summary has been copied to clipboard",
+                                });
+                              }}
+                              className="px-3 py-1.5 bg-gray-100 dark:bg-gray-500 dark:hover:bg-gray-600 hover:bg-gray-200 text-gray-950 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                />
+                              </svg>
+                              Copy Summary
+                            </button>
+                          </div>
                         </CardContent>
                       </Card>
                     ))}
