@@ -22,7 +22,9 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import FilePreview from "../components/FilePreview";
-import { List } from "react-window";
+import * as ReactWindow from "react-window";
+const List: any =
+  (ReactWindow as any).FixedSizeList || (ReactWindow as any).List;
 
 // Item data type for react-window List
 interface SearchResultItemData {
@@ -338,6 +340,7 @@ export default function VectorSearchWithState() {
           question: searchQuery,
           min_score: minScore,
           top_k: 3,
+          fast: true,
           date_from: dateFrom || undefined,
           date_to: dateTo || undefined,
         }),

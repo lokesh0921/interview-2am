@@ -256,12 +256,18 @@ router.post("/ask", authMiddleware.required, async (req, res) => {
     }
 
     // Pull tunables (with safe caps)
-    const requestedTopK = Math.min(parseInt(req.body?.top_k || 3), 10);
+    const fastMode =
+      String(req.body?.fast || "").toLowerCase() === "true" ||
+      req.body?.fast === true;
+    const requestedTopKRaw = Math.min(parseInt(req.body?.top_k || 3), 10);
+    const requestedTopK = fastMode
+      ? Math.min(requestedTopKRaw, 2)
+      : requestedTopKRaw;
     const minScoreReq = Number(req.body?.min_score ?? 0.3);
     const searchLimit = Math.max(requestedTopK * 4, 12); // broader pool for rerank
 
     // Try cache first
-    const cacheKey = `${userId}|${question}|${requestedTopK}|${minScoreReq}`;
+    const cacheKey = `${userId}|${question}|${requestedTopK}|${minScoreReq}|fast=${fastMode}`;
     const cached = getCache(ASK_CACHE, cacheKey);
     if (cached) return res.json(cached);
 
@@ -342,52 +348,72 @@ router.post("/ask", authMiddleware.required, async (req, res) => {
     }
 
     // Step 2: Extract relevant content from top documents
-    // Use both summary and raw content for comprehensive answers
-    const relevantContent = finalResults.map((doc) => {
-      // Get raw content from the database
+    let sections = [];
+    if (fastMode) {
+      const maxSummaryLengthFast = 4000;
+      sections = finalResults.map((doc) => {
+        const summaryContent = doc.summary_text || "Summary not available";
+        const truncatedSummary =
+          summaryContent.length > maxSummaryLengthFast
+            ? summaryContent.substring(0, maxSummaryLengthFast) + "..."
+            : summaryContent;
+        return `Document: ${doc.filename}\nSummary: ${truncatedSummary}`;
+      });
+    } else {
+      // Batch fetch raw content
       const RawDocument = getRawDocumentModel();
-      return RawDocument.findOne({ file_id: doc.file_id })
-        .then((rawDoc) => {
-          const rawContent = rawDoc?.raw_content || "Raw content not available";
-          const summaryContent = doc.summary_text || "Summary not available";
+      const ids = finalResults.map((d) => d.file_id);
+      const rawDocs = await RawDocument.find({ file_id: { $in: ids } })
+        .select("file_id raw_content")
+        .lean();
+      const rawById = new Map(rawDocs.map((d) => [d.file_id, d]));
 
-          // Truncate content to prevent token overflow - increased limits for better coverage
-          const maxSummaryLength = 12000; // Increased from 8k to 12k chars for summary
-          const maxRawLength = 25000; // Increased from 15k to 25k chars for raw content
+      const maxSummaryLength = 6000;
+      const maxRawLength = 8000;
 
-          const truncatedSummary =
-            summaryContent.length > maxSummaryLength
-              ? summaryContent.substring(0, maxSummaryLength) + "..."
-              : summaryContent;
+      sections = finalResults.map((doc) => {
+        const summaryContent = doc.summary_text || "Summary not available";
+        const truncatedSummary =
+          summaryContent.length > maxSummaryLength
+            ? summaryContent.substring(0, maxSummaryLength) + "..."
+            : summaryContent;
 
-          const truncatedRaw =
-            rawContent.length > maxRawLength
-              ? rawContent.substring(0, maxRawLength) + "..."
-              : rawContent;
+        const rawContent = rawById.get(doc.file_id)?.raw_content || "";
+        const truncatedRaw =
+          rawContent.length > maxRawLength
+            ? rawContent.substring(0, maxRawLength) + "..."
+            : rawContent;
 
-          return `Document: ${doc.filename}
-Summary: ${truncatedSummary}
-Raw Content: ${truncatedRaw}`;
-        })
-        .catch(() => {
-          // Fallback to summary only if raw content fetch fails
-          const summaryContent = doc.summary_text || "Summary not available";
-          const truncatedSummary =
-            summaryContent.length > 15000 // Increased from 10k to 15k chars
-              ? summaryContent.substring(0, 15000) + "..."
-              : summaryContent;
+        return `Document: ${doc.filename}\nSummary: ${truncatedSummary}$${
+          truncatedRaw ? `\nRaw Content: ${truncatedRaw}` : ""
+        }`.replace("$", "");
+      });
+    }
 
-          return `Document: ${doc.filename}\nContent: ${truncatedSummary}`;
-        });
-    });
-
-    // Wait for all content to be fetched
-    const resolvedContent = await Promise.all(relevantContent);
-    const finalContent = resolvedContent.join("\n\n");
+    const finalContent = sections.join("\n\n");
 
     console.log(`[VectorSearch API] Generating answer with GPT-5-mini...`);
     // Step 3: Use AI to answer the question based on retrieved content
     const answer = await generateAnswer(question, finalContent);
+
+    // Fallback: If the LLM returns an empty answer, synthesize key points from summaries
+    if (!answer || !String(answer).trim()) {
+      console.warn(
+        `[VectorSearch API] Empty answer from LLM. Falling back to synthesized key points.`
+      );
+      const bullets = finalResults
+        .map((doc) => {
+          const text = (doc.summary_text || "").replace(/\n+/g, " ").trim();
+          if (!text) return null;
+          const snippet = text.length > 600 ? text.slice(0, 600) + "..." : text;
+          return `- ${doc.filename}: ${snippet}`;
+        })
+        .filter(Boolean)
+        .slice(0, 8)
+        .join("\n");
+      answer =
+        bullets || "No direct answer generated. Try rephrasing your question.";
+    }
 
     console.log(`[VectorSearch API] Answer generated successfully`);
 

@@ -2,6 +2,24 @@ import { getDocumentSummaryModel } from "../models/DocumentSummary.js";
 import { getRawDocumentModel } from "../models/RawDocument.js";
 import { generateEmbedding } from "./vectorAi.js";
 
+// Lightweight in-memory cache for query embeddings (per-process)
+const QUERY_EMBED_CACHE = new Map();
+const EMB_TTL_MS = 5 * 60_000; // 5 minutes
+
+function getCachedEmbedding(key) {
+  const entry = QUERY_EMBED_CACHE.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.exp) {
+    QUERY_EMBED_CACHE.delete(key);
+    return null;
+  }
+  return entry.val;
+}
+
+function setCachedEmbedding(key, val) {
+  QUERY_EMBED_CACHE.set(key, { val, exp: Date.now() + EMB_TTL_MS });
+}
+
 /**
  * Perform semantic vector search on document summaries
  * @param {string} query - Search query text
@@ -26,106 +44,28 @@ export async function semanticSearch(query, userId, options = {}) {
     console.log(`[VectorSearch] Query: "${query}"`);
     console.log(`[VectorSearch] Options:`, options);
 
-    // Step 1: Generate embedding for the search query
-    console.log(`[VectorSearch] Generating embedding for query...`);
-    const queryEmbedding = await generateEmbedding(query);
+    // Step 1: Generate (or load cached) embedding for the search query
     console.log(
-      `[VectorSearch] Generated embedding with ${queryEmbedding.length} dimensions`
+      `[VectorSearch] Generating embedding for query (with cache)...`
+    );
+    let queryEmbedding = getCachedEmbedding(query);
+    if (!queryEmbedding) {
+      queryEmbedding = await generateEmbedding(query);
+      setCachedEmbedding(query, queryEmbedding);
+    }
+    console.log(
+      `[VectorSearch] Using embedding with ${queryEmbedding.length} dimensions`
     );
 
     // Get models
     const DocumentSummary = getDocumentSummaryModel();
     const RawDocument = getRawDocumentModel();
 
-    // Debug: Check total documents (global access)
-    console.log(
-      `[VectorSearch] Checking database connection and documents (global access)...`
-    );
+    // Remove heavy debug scans; proceed directly to vector search pipeline
 
-    // Test database connection and get stats
-    let totalDocs, totalRawDocs, completedDocs;
-    try {
-      totalDocs = await DocumentSummary.countDocuments();
-      totalRawDocs = await RawDocument.countDocuments();
-      completedDocs = await RawDocument.countDocuments({
-        processing_status: "completed",
-      });
-
-      console.log(`[VectorSearch] Database connection successful`);
-    } catch (dbError) {
-      console.error(`[VectorSearch] Database connection error:`, dbError);
-      throw new Error(`Database connection failed: ${dbError.message}`);
-    }
-
-    console.log(`[VectorSearch] Database stats (global):`);
-    console.log(`  - Total DocumentSummary records: ${totalDocs}`);
-    console.log(`  - Total RawDocument records: ${totalRawDocs}`);
-    console.log(`  - Completed RawDocument records: ${completedDocs}`);
-
-    const allDocs = await DocumentSummary.aggregate([
-      {
-        $lookup: {
-          from: "raw_documents",
-          localField: "file_id",
-          foreignField: "file_id",
-          as: "raw_doc",
-        },
-      },
-      {
-        $match: {
-          "raw_doc.processing_status": "completed",
-        },
-      },
-    ]);
-
-    console.log(
-      `[VectorSearch] All documents with completed processing: ${allDocs.length}`
-    );
-
-    if (allDocs.length === 0) {
-      console.log(`[VectorSearch] No completed documents found in database`);
-
-      // Let's also check if there are any documents at all (for debugging)
-      const allRawDocs = await RawDocument.find({}).limit(5);
-      console.log(
-        `[VectorSearch] All documents (first 5):`,
-        allRawDocs.map((doc) => ({
-          file_id: doc.file_id,
-          filename: doc.filename,
-          processing_status: doc.processing_status,
-          created_at: doc.created_at,
-        }))
-      );
-
-      return {
-        query,
-        results: [],
-        total_results: 0,
-        search_options: options,
-        debug_info: {
-          total_docs: totalDocs,
-          all_docs: allDocs.length,
-          all_raw_docs: allRawDocs.length,
-        },
-      };
-    }
-
-    // Step 2: Build aggregation pipeline for vector search (global access)
+    // Step 2: Build aggregation pipeline for vector search
     const pipeline = [
-      // Match all completed documents (global access)
-      {
-        $lookup: {
-          from: "raw_documents",
-          localField: "file_id",
-          foreignField: "file_id",
-          as: "raw_doc",
-        },
-      },
-      {
-        $match: {
-          "raw_doc.processing_status": "completed",
-        },
-      },
+      // Compute similarity first; join metadata later for top-K
 
       // Filter by tags if provided
       ...(industries.length > 0
@@ -245,11 +185,22 @@ export async function semanticSearch(query, userId, options = {}) {
         },
       },
 
-      // Limit results
+      // Limit early to reduce downstream work
       {
         $limit: limit,
       },
-
+      // Join raw metadata for top candidates and ensure completed processing
+      {
+        $lookup: {
+          from: "raw_documents",
+          localField: "file_id",
+          foreignField: "file_id",
+          as: "raw_doc",
+        },
+      },
+      {
+        $match: { "raw_doc.processing_status": "completed" },
+      },
       // Project final fields and flatten raw_doc structure
       {
         $project: {
@@ -318,12 +269,6 @@ export async function semanticSearch(query, userId, options = {}) {
       results,
       total_results: results.length,
       search_options: options,
-      debug_info: {
-        total_docs: totalDocs,
-        all_docs: allDocs.length,
-        pipeline_stages: pipeline.length,
-        results_count: results.length,
-      },
     };
   } catch (error) {
     console.error("Semantic search error:", error);

@@ -217,7 +217,8 @@ Generate a comprehensive summary that maintains the document's essential informa
           content: prompt,
         },
       ],
-      max_completion_tokens: 20000, // Increased for very comprehensive summaries
+      // Use correct OpenAI parameter name
+      max_completion_tokens: 20000, // very comprehensive summaries
     });
 
     const processingTime = Date.now() - startTime;
@@ -302,7 +303,7 @@ Rules:
           content: prompt,
         },
       ],
-      max_completion_tokens: 2000, // Reduced for faster processing
+      max_completion_tokens: 2000, // correct param name
     });
 
     const processingTime = Date.now() - startTime;
@@ -668,7 +669,7 @@ Answer:`;
           content: prompt,
         },
       ],
-      max_completion_tokens: 3000, // Increased for more detailed financial analysis answers
+      max_completion_tokens: 1500, // correct param name for chat completions
       // Note: GPT-5-mini only supports default temperature (1)
     });
 

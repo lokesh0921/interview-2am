@@ -8,7 +8,7 @@ const config = loadConfig();
 
 async function main() {
   // Connect to both databases
-  await connectMongo(config); // Original database
+  // await connectMongo(config); // Original database
   await connectVectorMongo(); // Vector search database
   const server = createServer(app);
   server.listen(config.PORT, () => {
