@@ -38,7 +38,6 @@ const router = createBrowserRouter([
     path: "/vector-search",
     element: (
       <Protected>
-        {/* <VectorSearch /> */}
         <VectorSearchWithState />
       </Protected>
     ),

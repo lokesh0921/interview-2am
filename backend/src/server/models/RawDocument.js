@@ -18,6 +18,11 @@ const RawDocumentSchema = new mongoose.Schema(
       default: Date.now,
       index: true,
     },
+    reference_date: {
+      type: Date,
+      default: null,
+      index: true,
+    },
     file_size: {
       type: Number,
       required: true,

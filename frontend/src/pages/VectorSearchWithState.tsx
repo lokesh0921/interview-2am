@@ -62,8 +62,9 @@ const SearchResultItem = ({ index, style, data }: SearchResultItemProps) => {
               <CardDescription>
                 {formatFileSize(result.file_size)} • Uploaded{" "}
                 {formatDate(result.upload_date)}
-                {result.reference_date &&
-                  ` • Reference: ${formatDate(result.reference_date)}`}
+                {result.reference_date && (
+                  <> • Reference: {formatDate(result.reference_date)}</>
+                )}
               </CardDescription>
             </div>
             <div className="text-left sm:text-right">
@@ -326,7 +327,7 @@ export default function VectorSearchWithState() {
       }/vector-search/ask`;
 
       const ac = new AbortController();
-      const timeout = setTimeout(() => ac.abort(), 20000);
+      const timeout = setTimeout(() => ac.abort(), 60000);
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
@@ -372,13 +373,22 @@ export default function VectorSearchWithState() {
       }
     } catch (error) {
       console.error("Error asking question:", error);
-      toast({
-        title: "Question Error",
-        description: `Failed to answer question: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        variant: "destructive",
-      });
+      if ((error as any)?.name === "AbortError") {
+        toast({
+          title: "Request Timed Out",
+          description:
+            "The server took too long to respond. Please try again, refine your query, or reduce the date range.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Question Error",
+          description: `Failed to answer question: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsSearching(false);
     }
@@ -431,7 +441,7 @@ export default function VectorSearchWithState() {
       }/vector-search/simple-search`;
 
       const ac = new AbortController();
-      const timeout = setTimeout(() => ac.abort(), 20000);
+      const timeout = setTimeout(() => ac.abort(), 60000);
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
@@ -491,13 +501,22 @@ export default function VectorSearchWithState() {
         error
       );
       updateVectorSearch({ searchResults: [] });
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
-      toast({
-        title: "Search Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      if ((error as any)?.name === "AbortError") {
+        toast({
+          title: "Request Timed Out",
+          description:
+            "The search took too long. Please try again or narrow the search scope.",
+          variant: "destructive",
+        });
+      } else {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        toast({
+          title: "Search Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsSearching(false);
     }
@@ -786,6 +805,15 @@ export default function VectorSearchWithState() {
                                         {formatFileSize(source.file_size)} •
                                         Uploaded{" "}
                                         {formatDate(source.upload_date)}
+                                        {(source as any).reference_date && (
+                                          <>
+                                            {" "}
+                                            • Reference:{" "}
+                                            {formatDate(
+                                              (source as any).reference_date
+                                            )}
+                                          </>
+                                        )}
                                       </CardDescription>
                                     </div>
                                     <div className="text-left sm:text-right">
@@ -1037,21 +1065,7 @@ export default function VectorSearchWithState() {
                         } as SearchResultItemData
                       }
                     >
-                      {({
-                        index,
-                        style,
-                        data,
-                      }: {
-                        index: number;
-                        style: React.CSSProperties;
-                        data: SearchResultItemData;
-                      }) => (
-                        <SearchResultItem
-                          index={index}
-                          style={style}
-                          data={data}
-                        />
-                      )}
+                      {SearchResultItem as any}
                     </List>
                   ) : (
                     // Use regular rendering for small result sets
@@ -1070,10 +1084,13 @@ export default function VectorSearchWithState() {
                                 <CardDescription>
                                   {formatFileSize(result.file_size)} • Uploaded{" "}
                                   {formatDate(result.upload_date)}
-                                  {result.reference_date &&
-                                    ` • Reference: ${formatDate(
-                                      result.reference_date
-                                    )}`}
+                                  {result.reference_date && (
+                                    <>
+                                      {" "}
+                                      • Reference:{" "}
+                                      {formatDate(result.reference_date)}
+                                    </>
+                                  )}
                                 </CardDescription>
                               </div>
                               <div className="text-left sm:text-right">

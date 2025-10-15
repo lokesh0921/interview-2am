@@ -38,6 +38,7 @@ interface FileItem {
     file_size?: number;
     mime_type?: string;
     upload_date?: string;
+    reference_date?: string | null;
     processing_status?: string;
     owner_user_id?: string;
   };
@@ -1026,9 +1027,34 @@ export default function Summary() {
                           </svg>
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             Uploaded:{" "}
-                            {new Date(item.created_at).toLocaleDateString()}
+                            {new Date(
+                              item.metadata?.upload_date || item.created_at
+                            ).toLocaleDateString()}
                           </span>
                         </div>
+                        {item.metadata?.reference_date && (
+                          <div className="flex items-center gap-1">
+                            <svg
+                              className="h-3 w-3 text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              Reference:{" "}
+                              {new Date(
+                                item.metadata.reference_date
+                              ).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
                         {item.categories?.map((category, idx) => (
                           <span
                             key={idx}

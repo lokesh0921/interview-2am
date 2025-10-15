@@ -34,6 +34,7 @@ export async function uploadDocumentForVectorSearch(
         fileId,
         userId,
         mimeType: file.mimetype,
+        uploadDate: new Date(),
         ...metadata,
       },
     });
@@ -157,6 +158,7 @@ The document has been uploaded and processed for metadata extraction and AI anal
         `[Upload] Step 6: Finalizing upload for ${file.originalname}...`
       );
       rawDocument.processing_status = "completed";
+      rawDocument.reference_date = aiProcessedData.reference_date || null;
       await rawDocument.save();
 
       console.log(
